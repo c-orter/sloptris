@@ -58,7 +58,6 @@
   #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; touch-action: none; }
   #board {
     border-radius: 12px; border: 1px solid var(--line); background: rgba(8,10,24,.85);
-    box-shadow: 0 0 0 1px rgba(255,255,255,.02), 0 20px 50px rgba(0,0,0,.5), 0 0 60px rgba(124,140,255,.08);
     touch-action: none;
   }
   #hint {
@@ -80,14 +79,13 @@
   /* Overlays */
   #overlay {
     position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-    background: rgba(6,8,20,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10;
+    background: rgba(6,8,20,.9); z-index: 10;
     padding: calc(var(--sat) + 16px) 16px calc(var(--sab) + 16px);
   }
   #overlay.show { display: flex; }
   .card {
     width: min(340px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 24px;
     padding: 28px 22px 22px; text-align: center; display: flex; flex-direction: column; gap: 14px;
-    box-shadow: 0 30px 80px rgba(0,0,0,.6);
   }
   .card h1 { margin: 0; font-size: 34px; letter-spacing: -.02em; font-weight: 900;
     background: linear-gradient(90deg, #38d6e8, #b05cf0, #f2543d); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -152,7 +150,7 @@
   'use strict';
   const COLS = 10, ROWS = 20;
   const $ = id => document.getElementById(id);
-  const board = $('board'), ctx = board.getContext('2d');
+  const board = $('board'), ctx = board.getContext('2d', { alpha: false });
   const nextC = $('next').getContext('2d'), holdC = $('hold').getContext('2d');
 
   // ---------- storage / settings ----------
@@ -181,7 +179,7 @@
 
   // ---------- audio (synthesised: no files, works offline) ----------
   const audio = (() => {
-    let ac, master, musicG, sfxG, noiseBuf, timer;
+    let ac, master, musicG, sfxG, noiseBuf, timer, paused = false, started = false, sleepT = 0;
     let muted = store.get('muted', false), musicOn = store.get('music', true), sfxOn = store.get('sfx', true);
     const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -216,7 +214,12 @@
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
-    function resume() { if (ac && ac.state !== 'running') ac.resume().catch(() => {}); }
+    function resume() { paused = false; clearTimeout(sleepT); if (ac && !muted && ac.state !== 'running') ac.resume().catch(() => {}); }
+    // An idle running AudioContext keeps the audio hardware awake; park it when nothing is playing.
+    function sleepSoon() {
+      clearTimeout(sleepT);
+      if (!timer) sleepT = setTimeout(() => { if (!timer && ac && ac.state === 'running') ac.suspend().catch(() => {}); }, 2500);
+    }
     function note(freq, t, dur, type, vol, dest, slideTo) {
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = type; o.frequency.setValueAtTime(freq, t);
@@ -236,29 +239,45 @@
       if (!ac) return;
       while (true) {
         const ev = EVENTS[ei], t = loopStart + ev.beat * spb;
-        if (t > ac.currentTime + .25) break;
+        if (t > ac.currentTime + .6) break;
         if (ev.v === 'lead') note(mtof(ev.m), t, ev.d * spb * .9, 'square', .16, musicG);
         else note(mtof(ev.m), t, ev.d * spb, 'triangle', .3, musicG);
         if (++ei >= EVENTS.length) { ei = 0; loopStart += LOOP * spb; spb = beatLen(); }
       }
     }
-    const sfx = fn => () => { if (ac && sfxOn && !muted && ac.state === 'running') fn(ac.currentTime + .005); };
+    const sfx = fn => () => {
+      if (!ac || !sfxOn || muted || paused) return;
+      if (ac.state === 'running') { fn(ac.currentTime + .005); sleepSoon(); }
+      else ac.resume().then(() => { fn(ac.currentTime + .005); sleepSoon(); }).catch(() => {});
+    };
 
     return {
       init, resume,
       get muted() { return muted; }, get music() { return musicOn; }, get sfx() { return sfxOn; },
-      setMuted(v) { muted = v; store.set('muted', v); if (master) master.gain.setTargetAtTime(v ? 0 : 1, ac.currentTime, .02); },
+      setMuted(v) {
+        muted = v; store.set('muted', v);
+        if (!ac) return;
+        master.gain.setTargetAtTime(v ? 0 : 1, ac.currentTime, .02);
+        if (v) { clearInterval(timer); timer = null; clearTimeout(sleepT); ac.suspend().catch(() => {}); }
+        else if (state === 'play') { resume(); this.ensureMusic(); }
+      },
       setMusic(v) { musicOn = v; store.set('music', v); if (!v) this.stopMusic(); else if (state === 'play') this.startMusic(); },
       setSfx(v) { sfxOn = v; store.set('sfx', v); },
       startMusic() {
-        if (!ac || !musicOn) return;
+        if (!ac || !musicOn || muted) return;
         this.stopMusic(); resume();
-        ei = 0; spb = beatLen(); loopStart = ac.currentTime + .1;
-        timer = setInterval(sched, 50);
+        ei = 0; spb = beatLen(); loopStart = ac.currentTime + .1; started = true;
+        timer = setInterval(sched, 150);
       },
-      ensureMusic() { if (!timer) this.startMusic(); },
-      stopMusic() { clearInterval(timer); timer = null; },
-      suspend() { if (ac && ac.state === 'running') ac.suspend().catch(() => {}); },
+      ensureMusic() {
+        if (!ac || !musicOn || muted || paused || timer) return;
+        if (started) timer = setInterval(sched, 150); else this.startMusic();
+      },
+      stopMusic() { clearInterval(timer); timer = null; started = false; sleepSoon(); },
+      suspend() {
+        paused = true; clearInterval(timer); timer = null; clearTimeout(sleepT);
+        if (ac && ac.state === 'running') ac.suspend().catch(() => {});
+      },
       move: sfx(t => note(300, t, .03, 'square', .04, sfxG)),
       rotate: sfx(t => note(520, t, .06, 'square', .09, sfxG, 800)),
       hold: sfx(t => { note(330, t, .07, 'triangle', .2, sfxG); note(495, t + .06, .09, 'triangle', .2, sfxG); }),
@@ -289,7 +308,7 @@
   // ---------- state ----------
   let grid, cur, nextType, holdType, canHold, bag;
   let score, lines, level, state = 'menu';      // menu | play | pause | over
-  let dropTimer, lockTimer, lockResets, lastT, clearing, newBest, flash = [];
+  let dropTimer, lockTimer, lockResets, clearing, newBest, flash = [];
   let cs = 20;                                   // cell size in CSS px
 
   const buzz = ms => { if (haptics && navigator.vibrate) try { navigator.vibrate(ms); } catch {} };
@@ -332,40 +351,41 @@
     state = 'play';
     updateHUD(); hideOverlay(); showHint();
     audio.init(); audio.resume(); audio.startMusic();
+    lastTick = performance.now(); changed();
   }
   function touchLock() { if (lockResets < 15) { lockTimer = 0; lockResets++; } }
 
   // ---------- actions ----------
-  const playable = () => state === 'play' && !clearing;
+  const playable = () => { if (state === 'play') advance(); return state === 'play' && !clearing; };
   function move(dx) {
     if (!playable() || collides(cur.m, cur.x + dx, cur.y)) return false;
-    cur.x += dx; touchLock(); audio.move(); return true;
+    cur.x += dx; touchLock(); audio.move(); changed(); return true;
   }
   function rotate(dir) {
     if (!playable() || cur.type === 'O') return;
     const r = rotateM(cur.m, dir);
     for (const k of [0, -1, 1, -2, 2]) {
       for (const dy of [0, -1]) {
-        if (!collides(r, cur.x + k, cur.y + dy)) { cur.m = r; cur.x += k; cur.y += dy; touchLock(); buzz(6); audio.rotate(); return; }
+        if (!collides(r, cur.x + k, cur.y + dy)) { cur.m = r; cur.x += k; cur.y += dy; touchLock(); buzz(6); audio.rotate(); changed(); return; }
       }
     }
   }
   function softDrop() {
     if (!playable() || collides(cur.m, cur.x, cur.y + 1)) return false;
-    cur.y++; score += 1; dropTimer = 0; updateHUD(); return true;
+    cur.y++; score += 1; dropTimer = 0; updateHUD(); changed(); return true;
   }
   function hardDrop() {
     if (!playable()) return;
     let d = 0;
     while (!collides(cur.m, cur.x, cur.y + 1)) { cur.y++; d++; }
-    score += d * 2; lock(true);
+    score += d * 2; lock(true); changed();
   }
   function hold() {
     if (!playable() || !canHold) return;
     const t = cur.type;
     if (holdType) { const h = holdType; holdType = t; spawn(h); }
     else { holdType = t; spawn(takeNext()); }
-    canHold = false; buzz(8); audio.hold();
+    canHold = false; buzz(8); audio.hold(); changed();
   }
   function lock(hard) {
     for (let y = 0; y < cur.m.length; y++) for (let x = 0; x < cur.m[y].length; x++) {
@@ -406,54 +426,79 @@
     if (score > best) { best = score; newBest = true; store.set('best', best); }
     buzz([60, 40, 120]);
     audio.stopMusic(); audio.over();
-    updateHUD(); showOverlay();
+    updateHUD(); showOverlay(); changed();
   }
   function setPaused(p) {
-    if (p && state === 'play') { state = 'pause'; showOverlay(); audio.suspend(); }
-    else if (!p && state === 'pause') { state = 'play'; hideOverlay(); lastT = 0; audio.resume(); audio.ensureMusic(); }
+    if (p && state === 'play') { state = 'pause'; showOverlay(); audio.suspend(); changed(); }
+    else if (!p && state === 'pause') { state = 'play'; hideOverlay(); lastTick = performance.now(); audio.resume(); audio.ensureMusic(); changed(); }
   }
   const dropInterval = () => Math.max(60, 800 * Math.pow(0.85, level - 1));
 
   // ---------- HUD ----------
   function updateHUD() {
-    $('score').textContent = score;
-    $('lines').textContent = lines;
-    $('level').textContent = level;
+    for (const [id, v] of [['score', score], ['lines', lines], ['level', level]]) {
+      const el = $(id); if (el.dataset.v !== String(v)) { el.dataset.v = v; el.textContent = v; }
+    }
   }
 
   // ---------- drawing ----------
-  function block(c, x, y, size, type, alpha = 1) {
-    const col = COLORS[type], pad = Math.max(1, size * 0.04), r = size * 0.2;
-    c.globalAlpha = alpha;
-    c.fillStyle = col;
+  // Blocks are pre-rendered once per size into sprites, and the board is only
+  // redrawn when something changed, so an idle game costs almost nothing.
+  let dpr = 1, bg = null, sprites = {}, ghosts = {}, minis = {}, miniKey = '';
+  let rafId = 0, dirty = false;
+
+  function block(c, x, y, size, type) {
+    const pad = Math.max(1, size * 0.04), r = size * 0.2;
+    c.fillStyle = COLORS[type];
     c.beginPath(); c.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r); c.fill();
     const g = c.createLinearGradient(0, y, 0, y + size);
     g.addColorStop(0, 'rgba(255,255,255,.38)'); g.addColorStop(.45, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.28)');
     c.fillStyle = g;
     c.beginPath(); c.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r); c.fill();
-    c.globalAlpha = 1;
   }
-  function drawMini(c, type, w, h) {
-    c.setTransform(2, 0, 0, 2, 0, 0);       // canvases are 2x their CSS size
-    c.clearRect(0, 0, w, h);
+  function sprite(size, scale, paint) {
+    const c = document.createElement('canvas');
+    c.width = c.height = Math.ceil(size * scale);
+    const g = c.getContext('2d'); g.scale(scale, scale); paint(g);
+    return c;
+  }
+  function buildSprites() {
+    sprites = {}; ghosts = {}; minis = {};
+    for (const t of KEYS) {
+      sprites[t] = sprite(cs, dpr, g => block(g, 0, 0, cs, t));
+      ghosts[t] = sprite(cs, dpr, g => {
+        g.strokeStyle = COLORS[t]; g.globalAlpha = .55; g.lineWidth = 2;
+        g.beginPath(); g.roundRect(2, 2, cs - 4, cs - 4, cs * .18); g.stroke();
+      });
+      minis[t] = sprite(13, 2, g => block(g, 0, 0, 13, t));
+    }
+    const W = COLS * cs, H = ROWS * cs;
+    bg = sprite(1, 1, () => {});
+    bg.width = Math.ceil(W * dpr); bg.height = Math.ceil(H * dpr);
+    const g = bg.getContext('2d'); g.scale(dpr, dpr);
+    g.fillStyle = '#090b1a'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(160,170,255,.06)'; g.lineWidth = 1; g.beginPath();
+    for (let x = 1; x < COLS; x++) { g.moveTo(x * cs + .5, 0); g.lineTo(x * cs + .5, H); }
+    for (let y = 1; y < ROWS; y++) { g.moveTo(0, y * cs + .5); g.lineTo(W, y * cs + .5); }
+    g.stroke();
+  }
+  function drawMini(c, type, dim) {
+    c.clearRect(0, 0, 64, 40);
     if (!type) return;
     const m = SHAPES[type], s = 13;
     let x0 = 9, x1 = 0, y0 = 9, y1 = 0;
     m.forEach((r, y) => r.forEach((v, x) => { if (v) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }));
-    const ox = (w - (x1 - x0 + 1) * s) / 2, oy = (h - (y1 - y0 + 1) * s) / 2;
-    m.forEach((r, y) => r.forEach((v, x) => { if (v) block(c, ox + (x - x0) * s, oy + (y - y0) * s, s, type, type === holdType && !canHold && c === holdC ? .35 : 1); }));
+    const ox = (64 - (x1 - x0 + 1) * s) / 2, oy = (40 - (y1 - y0 + 1) * s) / 2;
+    c.globalAlpha = dim ? .35 : 1;
+    m.forEach((r, y) => r.forEach((v, x) => { if (v) c.drawImage(minis[type], ox + (x - x0) * s, oy + (y - y0) * s, s, s); }));
+    c.globalAlpha = 1;
   }
   function draw() {
     const W = COLS * cs, H = ROWS * cs;
-    ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(160,170,255,.06)'; ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let x = 1; x < COLS; x++) { ctx.moveTo(x * cs + .5, 0); ctx.lineTo(x * cs + .5, H); }
-    for (let y = 1; y < ROWS; y++) { ctx.moveTo(0, y * cs + .5); ctx.lineTo(W, y * cs + .5); }
-    ctx.stroke();
+    ctx.drawImage(bg, 0, 0, W, H);
 
     for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
-      if (grid[y][x]) block(ctx, x * cs, y * cs, cs, grid[y][x]);
+      if (grid[y][x]) ctx.drawImage(sprites[grid[y][x]], x * cs, y * cs, cs, cs);
 
     if (clearing) {
       const a = .35 + .5 * Math.abs(Math.sin(clearing.t / 40));
@@ -464,48 +509,59 @@
         let gy = cur.y;
         while (!collides(cur.m, cur.x, gy + 1)) gy++;
         if (gy !== cur.y) cur.m.forEach((r, y) => r.forEach((v, x) => {
-          if (v && gy + y >= 0) {
-            ctx.strokeStyle = COLORS[cur.type]; ctx.globalAlpha = .55; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.roundRect((cur.x + x) * cs + 2, (gy + y) * cs + 2, cs - 4, cs - 4, cs * .18); ctx.stroke();
-            ctx.globalAlpha = 1;
-          }
+          if (v && gy + y >= 0) ctx.drawImage(ghosts[cur.type], (cur.x + x) * cs, (gy + y) * cs, cs, cs);
         }));
       }
-      cur.m.forEach((r, y) => r.forEach((v, x) => { if (v && cur.y + y >= 0) block(ctx, (cur.x + x) * cs, (cur.y + y) * cs, cs, cur.type); }));
+      cur.m.forEach((r, y) => r.forEach((v, x) => { if (v && cur.y + y >= 0) ctx.drawImage(sprites[cur.type], (cur.x + x) * cs, (cur.y + y) * cs, cs, cs); }));
     }
-    drawMini(nextC, nextType, 64, 40);
-    drawMini(holdC, holdType, 64, 40);
+    const k = nextType + '|' + holdType + '|' + canHold;
+    if (k !== miniKey) { miniKey = k; drawMini(nextC, nextType, false); drawMini(holdC, holdType, !canHold); }
+  }
+  function requestDraw() { dirty = true; if (!rafId) rafId = requestAnimationFrame(drawFrame); }
+  function drawFrame() {
+    rafId = 0;
+    if (!dirty || !grid) return;
+    dirty = false; draw();
+    if (clearing) { advance(); schedule(); requestDraw(); }      // line-clear flash needs frames
   }
 
   function resize() {
     const stage = $('stage'), r = stage.getBoundingClientRect();
     cs = Math.max(8, Math.floor(Math.min((r.width - 4) / COLS, (r.height - 4) / ROWS)));
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     board.style.width = COLS * cs + 'px'; board.style.height = ROWS * cs + 'px';
-    board.width = COLS * cs * dpr; board.height = ROWS * cs * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    board.width = Math.ceil(COLS * cs * dpr); board.height = Math.ceil(ROWS * cs * dpr);
+    ctx.setTransform(board.width / (COLS * cs), 0, 0, board.height / (ROWS * cs), 0, 0);
+    buildSprites(); miniKey = ''; requestDraw();
   }
 
-  // ---------- main loop ----------
-  function frame(t) {
-    const dt = Math.min(100, t - (lastT || t)); lastT = t;
-    if (state === 'play') {
-      if (clearing) {
-        clearing.t += dt;
-        if (clearing.t > 260) finishClear();
-      } else {
-        if (collides(cur.m, cur.x, cur.y + 1)) {
-          lockTimer += dt;
-          if (lockTimer > 500) lock(false);
-        } else {
-          lockTimer = 0; dropTimer += dt;
-          if (dropTimer >= dropInterval()) { dropTimer = 0; cur.y++; }
-        }
-      }
+  // ---------- game clock ----------
+  // Timer-driven instead of a 60fps loop: sleeps until the next gravity step or lock.
+  let tm = 0, lastTick = 0;
+  function advance() {
+    const now = performance.now(), dt = Math.min(1000, now - lastTick); lastTick = now;
+    if (state !== 'play' || !cur) return;
+    if (clearing) {
+      clearing.t += dt;
+      if (clearing.t > 260) finishClear();
+    } else if (collides(cur.m, cur.x, cur.y + 1)) {
+      lockTimer += dt;
+      if (lockTimer > 500) lock(false);
+    } else {
+      lockTimer = 0; dropTimer += dt;
+      if (dropTimer >= dropInterval()) { dropTimer = 0; cur.y++; }
     }
-    if (grid) draw();
-    requestAnimationFrame(frame);
   }
+  function schedule() {
+    clearTimeout(tm); tm = 0;
+    if (state !== 'play') return;
+    const rem = clearing ? 260 - clearing.t
+      : collides(cur.m, cur.x, cur.y + 1) ? 500 - lockTimer
+      : dropInterval() - dropTimer;
+    tm = setTimeout(tick, Math.max(4, rem) + 2);
+  }
+  function tick() { tm = 0; advance(); changed(); }
+  function changed() { requestDraw(); schedule(); }
 
   // ---------- overlays ----------
   let deferredInstall = null;
@@ -558,7 +614,7 @@
     if (e.target.id === 'optHaptic') { haptics = e.target.checked; store.set('haptics', haptics); buzz(15); }
     if (e.target.id === 'optMusic') audio.setMusic(e.target.checked);
     if (e.target.id === 'optSfx') { audio.setSfx(e.target.checked); audio.rotate(); }
-    if (e.target.id === 'optGhost') { ghostOn = e.target.checked; store.set('ghost', ghostOn); }
+    if (e.target.id === 'optGhost') { ghostOn = e.target.checked; store.set('ghost', ghostOn); requestDraw(); }
   });
   const syncMute = () => { $('muteBtn').textContent = audio.muted ? '🔇' : '🔊'; $('muteBtn').setAttribute('aria-pressed', audio.muted); };
   $('muteBtn').addEventListener('click', () => { audio.init(); audio.setMuted(!audio.muted); syncMute(); });
@@ -710,7 +766,7 @@
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
   bag = []; score = 0; lines = 0; level = 1; cur = { type: 'T', m: SHAPES.T, x: 3, y: -5 };
   applyMode(); resize(); updateHUD(); showOverlay();
-  requestAnimationFrame(frame);
+  [nextC, holdC].forEach(c => c.setTransform(2, 0, 0, 2, 0, 0));
 })();
 </script>
 </body>
