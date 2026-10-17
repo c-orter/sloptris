@@ -5,27 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Sloptris</title>
 <meta name="description" content="Offline Tetris. Install it and play anywhere.">
-<meta name="theme-color" content="#0b0d18">
+<meta name="theme-color" content="#121212">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sloptris">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
+  /* Three themes, each its own direction: flat colour, one accent, no gradients or glow. */
   :root {
-    --bg: #0b0d18; --panel: #151933; --line: #262b52; --text: #eceffd; --dim: #8b92c0; --accent: #7c8cff;
     --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
+    /* Graphite (default): charcoal, warm off-white, one vermilion accent */
+    --bg: #121212; --surface: #1b1b1a; --ink: #e8e6e1; --dim: #8a8780; --rule: #2d2d2b;
+    --accent: #ff6a3d; --accent-ink: #121212; --veil: rgba(10,10,10,.93);
+    --bd-tile: 0 none; --bd-hard: 1px solid #2d2d2b;
+    --r-tile: 6px; --r-btn: 4px; --r-board: 3px; --r-card: 8px;
+    --font: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    --num-w: 600; --ls: .12em;
+  }
+  /* Paper: printed-diagram look, ink on cream, serif, square corners */
+  :root[data-theme="paper"] {
+    --bg: #e7dfce; --surface: #f5f0e4; --ink: #1c1b19; --dim: #6e675b; --rule: rgba(28,27,25,.28);
+    --accent: #c8402f; --accent-ink: #fff8ee; --veil: rgba(231,223,206,.95);
+    --bd-tile: 1.5px solid #1c1b19; --bd-hard: 1.5px solid #1c1b19;
+    --r-tile: 2px; --r-btn: 2px; --r-board: 0; --r-card: 3px;
+    --font: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --num-w: 700; --ls: .08em;
+  }
+  /* Handheld: four-shade LCD green, monospace, hard edges */
+  :root[data-theme="handheld"] {
+    --bg: #8bac0f; --surface: #9bbc0f; --ink: #0f380f; --dim: #306230; --rule: #306230;
+    --accent: #0f380f; --accent-ink: #9bbc0f; --veil: rgba(139,172,15,.96);
+    --bd-tile: 2px solid #0f380f; --bd-hard: 2px solid #0f380f;
+    --r-tile: 0; --r-btn: 0; --r-board: 0; --r-card: 0;
+    --font: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --num-w: 700; --ls: .04em;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); overscroll-behavior: none; }
   body {
-    color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); font-family: var(--font);
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
-    background: radial-gradient(120% 80% at 50% 0%, #1a1f45 0%, var(--bg) 60%);
   }
+  button { font-family: inherit; color: inherit; }
+  svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; display: block; margin: auto; }
   #app {
     height: 100dvh; display: flex; flex-direction: column;
     padding: calc(var(--sat) + 8px) calc(var(--sar) + 12px) calc(var(--sab) + 8px) calc(var(--sal) + 12px);
@@ -34,32 +60,23 @@
 
   /* HUD */
   #hud { display: flex; align-items: stretch; gap: 8px; flex: none; }
-  .tile {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-  }
-  .tile small { font-size: 10px; letter-spacing: .14em; color: var(--dim); font-weight: 700; }
-  .mini { width: 72px; height: 62px; padding: 4px 0 2px; cursor: pointer; }
+  .tile { background: var(--surface); border: var(--bd-tile); border-radius: var(--r-tile); display: flex; flex-direction: column; }
+  .tile small, .label { font-size: 10px; letter-spacing: var(--ls); color: var(--dim); font-weight: 700; text-transform: uppercase; }
+  .mini { width: 72px; height: 62px; padding: 6px 0 2px; align-items: center; cursor: pointer; }
   .mini canvas { width: 64px; height: 40px; display: block; }
-  #stats { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-content: center; padding: 4px 12px; gap: 0 12px; }
-  #stats div { display: flex; flex-direction: column; }
-  #stats .score { grid-column: 1 / 3; align-items: center; }
-  #stats b { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  #stats .score b { font-size: 30px; }
-  #stats .row { flex-direction: row !important; justify-content: space-between; align-items: baseline; }
+  #stats { flex: 1; padding: 6px 12px; display: grid; grid-template-columns: 1fr 1fr; align-content: center; gap: 2px 12px; }
+  #stats .score { grid-column: 1 / 3; display: flex; flex-direction: column; }
+  #stats b { font-weight: var(--num-w); font-variant-numeric: tabular-nums; }
+  #stats .score b { font-size: 30px; line-height: 1.05; }
+  #stats .row { display: flex; gap: 8px; align-items: baseline; }
   #stats .row b { font-size: 15px; }
   #btns { display: flex; flex-direction: column; gap: 6px; width: 44px; flex: none; }
-  #btns button {
-    flex: 1; border: 1px solid var(--line); background: var(--panel); color: var(--text);
-    border-radius: 12px; font-size: 16px; padding: 0;
-  }
+  #btns button { flex: 1; padding: 0; background: var(--surface); border: var(--bd-tile); border-radius: var(--r-btn); }
+  #btns button:active { background: var(--accent); color: var(--accent-ink); }
 
   /* Playfield */
   #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; touch-action: none; }
-  #board {
-    border-radius: 12px; border: 1px solid var(--line); background: rgba(8,10,24,.85);
-    touch-action: none;
-  }
+  #board { border: var(--bd-hard); border-radius: var(--r-board); touch-action: none; }
   #hint {
     position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 12px; color: var(--dim);
     pointer-events: none; opacity: 0; transition: opacity .4s;
@@ -69,48 +86,54 @@
   /* Button pad (optional control scheme) */
   #pad { flex: none; display: none; grid-template-columns: repeat(5, 1fr); gap: 8px; }
   body.buttons #pad { display: grid; }
-  #pad button {
-    height: 62px; border: 1px solid var(--line); background: var(--panel); color: var(--text);
-    border-radius: 16px; font-size: 22px; touch-action: none;
-  }
-  #pad button:active, #pad button.on { background: #232a63; border-color: var(--accent); }
-  #pad .drop { background: linear-gradient(#3b46a8, #2a3380); }
+  #pad button { height: 62px; padding: 0; background: var(--surface); border: var(--bd-tile); border-radius: var(--r-btn); touch-action: none; }
+  #pad button:active, #pad button.on { background: var(--ink); color: var(--surface); }
+  #pad .drop { background: var(--accent); color: var(--accent-ink); }
 
   /* Overlays */
   #overlay {
     position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-    background: rgba(6,8,20,.9); z-index: 10;
+    background: var(--veil); z-index: 10; overflow-y: auto;
     padding: calc(var(--sat) + 16px) 16px calc(var(--sab) + 16px);
   }
   #overlay.show { display: flex; }
   .card {
-    width: min(340px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 24px;
-    padding: 28px 22px 22px; text-align: center; display: flex; flex-direction: column; gap: 14px;
+    width: min(340px, 100%); margin: auto; background: var(--surface); border: var(--bd-hard); border-radius: var(--r-card);
+    padding: 20px; display: flex; flex-direction: column; gap: 12px; text-align: left;
   }
-  .card h1 { margin: 0; font-size: 34px; letter-spacing: -.02em; font-weight: 900;
-    background: linear-gradient(90deg, #38d6e8, #b05cf0, #f2543d); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .card h2 { margin: 0; font-size: 26px; font-weight: 800; }
+  .card h1 { margin: 0; font-size: 28px; line-height: 1; letter-spacing: var(--ls); text-transform: uppercase; font-weight: 800; }
+  :root[data-theme="paper"] .card h1 { text-transform: none; font-style: italic; letter-spacing: 0; font-size: 34px; }
+  .card h2 { margin: 0; font-size: 22px; font-weight: 700; }
   .card p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.5; }
-  .big { font-size: 38px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .card p b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .big { font-size: 44px; line-height: 1; font-weight: var(--num-w); font-variant-numeric: tabular-nums; }
+  .sect { border-top: 1px solid var(--rule); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
   .btn {
-    border: 0; border-radius: 14px; padding: 15px; font-size: 17px; font-weight: 700; color: #fff;
-    background: linear-gradient(#5c6cff, #4452e0); box-shadow: 0 6px 18px rgba(92,108,255,.35);
+    border: var(--bd-tile); border-radius: var(--r-btn); padding: 14px; font-size: 16px; font-weight: 700;
+    background: var(--accent); color: var(--accent-ink); text-align: center;
   }
-  .btn.alt { background: var(--line); box-shadow: none; color: var(--text); }
-  .btn:active { transform: translateY(1px); filter: brightness(.92); }
-  .seg { display: grid; grid-template-columns: 1fr 1fr; background: #0d1030; border-radius: 12px; padding: 3px; }
-  .seg button { border: 0; background: transparent; color: var(--dim); padding: 10px; border-radius: 10px; font-size: 14px; font-weight: 600; }
-  .seg button.on { background: var(--line); color: var(--text); }
-  .how { text-align: left; font-size: 13px; color: var(--dim); line-height: 1.7; }
-  .how b { color: var(--text); font-weight: 600; }
-  .toggles { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
-  .toggles label { display: flex; align-items: center; gap: 6px; }
+  :root:not([data-theme="paper"]):not([data-theme="handheld"]) .btn { border: 0; }
+  .btn.alt { background: transparent; color: var(--ink); border: 1px solid var(--rule); }
+  :root[data-theme="paper"] .btn.alt, :root[data-theme="handheld"] .btn.alt { border: var(--bd-tile); }
+  .btn:active { filter: brightness(.9); }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--rule); border-radius: var(--r-btn); overflow: hidden; }
+  :root[data-theme="paper"] .seg, :root[data-theme="handheld"] .seg { border: var(--bd-tile); }
+  .seg button { border: 0; background: transparent; color: var(--dim); padding: 10px 6px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button.on { background: var(--ink); color: var(--surface); }
+  .sw { display: inline-flex; } .sw i { width: 7px; height: 12px; display: block; }
+  .how { font-size: 13px; color: var(--dim); line-height: 1.65; margin: 0; }
+  .how b { color: var(--ink); font-weight: 600; }
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; font-size: 13px; color: var(--ink); }
+  .toggles label { display: flex; align-items: center; gap: 8px; }
+  .toggles input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
   #installBtn { display: none; }
 
   @media (min-width: 560px) and (min-height: 700px) {
     #app { max-width: 520px; margin: 0 auto; width: 100%; }
   }
-  @media (max-height: 560px) { .mini { height: 52px; } #stats b { font-size: 18px !important; } #pad button { height: 48px; } }
+  @media (max-height: 560px) { .mini { height: 52px; } #stats .score b { font-size: 22px; } #pad button { height: 48px; } }
 </style>
 </head>
 <body>
@@ -119,12 +142,12 @@
     <div class="tile mini" id="holdBox"><small>HOLD</small><canvas id="hold" width="128" height="80"></canvas></div>
     <div class="tile" id="stats">
       <div class="score"><small>SCORE</small><b id="score">0</b></div>
-      <div class="row"><small>LEVEL</small><b id="level">1</b></div>
-      <div class="row"><small>LINES</small><b id="lines">0</b></div>
+      <div class="row"><small>Level</small><b id="level">1</b></div>
+      <div class="row"><small>Lines</small><b id="lines">0</b></div>
     </div>
     <div class="tile mini"><small>NEXT</small><canvas id="next" width="128" height="80"></canvas></div>
     <div id="btns">
-      <button id="pauseBtn" aria-label="Pause">❚❚</button>
+      <button id="pauseBtn" aria-label="Pause"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button>
       <button id="muteBtn" aria-label="Mute"></button>
     </div>
   </header>
@@ -135,11 +158,11 @@
   </main>
 
   <footer id="pad">
-    <button data-a="left" aria-label="Left">◀</button>
-    <button data-a="right" aria-label="Right">▶</button>
-    <button data-a="rotate" aria-label="Rotate">⟳</button>
-    <button data-a="hold" aria-label="Hold">⇄</button>
-    <button data-a="drop" class="drop" aria-label="Drop">⤓</button>
+    <button data-a="left" aria-label="Left"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button data-a="right" aria-label="Right"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    <button data-a="rotate" aria-label="Rotate"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.2-5.1"/><path d="M19 4v5h-5"/></svg></button>
+    <button data-a="hold" aria-label="Hold"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h13M14 4l4 4-4 4M19 16H6M10 12l-4 4 4 4"/></svg></button>
+    <button data-a="drop" class="drop" aria-label="Drop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v13M6 11l6 6 6-6M5 21h14"/></svg></button>
   </footer>
 </div>
 
@@ -173,7 +196,66 @@
     J: [[1,0,0],[1,1,1],[0,0,0]],
     L: [[0,0,1],[1,1,1],[0,0,0]],
   };
-  const COLORS = { I:'#38d6e8', O:'#f2d03b', T:'#b05cf0', S:'#4cd964', Z:'#f2543d', J:'#4a78f0', L:'#f29a3b' };
+  // Canvas side of the themes. Each theme draws its own blocks; Handheld tells pieces apart
+  // by pattern (it only has four greens), the other two by flat colour.
+  const strokeBox = (g, x, y, s, w) => g.strokeRect(x + 1 + w / 2, y + 1 + w / 2, s - 2 - w, s - 2 - w);
+  const THEMES = {
+    graphite: {
+      label: 'Graphite', meta: '#121212', bg: '#0c0c0c', grid: 'rgba(255,255,255,.045)', flash: '255,255,255',
+      swatch: ['#1b1b1a', '#ff6a3d', '#6bb8c9'],
+      colors: { I:'#6bb8c9', O:'#d9b84e', T:'#a98bc0', S:'#7ab571', Z:'#d65f55', J:'#6785c9', L:'#dc9145' },
+      block(g, x, y, s, t) {
+        const p = Math.max(1, s * .05), w = s - p * 2, r = s * .07;
+        g.fillStyle = this.colors[t]; g.beginPath(); g.roundRect(x + p, y + p, w, w, r); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(x + p + r, y + p, w - r * 2, Math.max(1, s * .07));
+        g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x + p + r, y + p + w - Math.max(1, s * .07), w - r * 2, Math.max(1, s * .07));
+      },
+      ghost(g, s, t) {
+        g.strokeStyle = this.colors[t]; g.globalAlpha = .5; g.lineWidth = 1.5;
+        g.beginPath(); g.roundRect(2, 2, s - 4, s - 4, s * .07); g.stroke();
+      },
+    },
+    paper: {
+      label: 'Paper', meta: '#e7dfce', bg: '#f5f0e4', grid: 'rgba(28,27,25,.11)', flash: '28,27,25',
+      swatch: ['#f5f0e4', '#c8402f', '#e4b43a'],
+      colors: { I:'#4d9aac', O:'#e8b93c', T:'#a2689a', S:'#6ea661', Z:'#d6493a', J:'#3a63ad', L:'#e5832f' },
+      block(g, x, y, s, t) {
+        const w = Math.max(1.5, s * .07);
+        g.fillStyle = this.colors[t]; g.fillRect(x + 1, y + 1, s - 2, s - 2);
+        g.strokeStyle = '#1c1b19'; g.lineWidth = w; strokeBox(g, x, y, s, w);
+        g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x + 1 + w, y + 1 + w, Math.max(2, s * .22), Math.max(1.5, s * .07));
+      },
+      ghost(g, s) {
+        g.strokeStyle = '#1c1b19'; g.globalAlpha = .45; g.lineWidth = 1.5; g.setLineDash([3, 3]);
+        g.strokeRect(2, 2, s - 4, s - 4);
+      },
+    },
+    handheld: {
+      label: 'Handheld', meta: '#8bac0f', bg: '#9bbc0f', grid: 'rgba(15,56,15,.13)', flash: '15,56,15',
+      swatch: ['#9bbc0f', '#306230', '#0f380f'],
+      colors: {},
+      block(g, x, y, s, t) {
+        const D = '#0f380f', M = '#306230', L = '#9bbc0f', b = x + 1, c = y + 1, n = s - 2, u = n / 5;
+        const lw = Math.max(1, s * .07);
+        g.fillStyle = L; g.fillRect(b, c, n, n);
+        if (t === 'I') { g.fillStyle = D; g.fillRect(b, c, n, n); }
+        else if (t === 'O') { g.fillStyle = M; g.fillRect(b, c, n, n); g.fillStyle = L; g.fillRect(b + u * 1.5, c + u * 1.5, u * 2, u * 2); }
+        else if (t === 'T') { g.strokeStyle = D; g.lineWidth = lw * 2; g.strokeRect(b + lw, c + lw, n - lw * 2, n - lw * 2); }
+        else if (t === 'S') { g.fillStyle = D; for (let i = 0; i < 5; i += 2) g.fillRect(b + i * u, c, u, n); }
+        else if (t === 'Z') { g.fillStyle = D; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) if ((i + j) % 2 === 0) g.fillRect(b + i * u, c + j * u, u, u); }
+        else if (t === 'J') { g.fillStyle = D; g.beginPath(); g.arc(b + n / 2, c + n / 2, n * .2, 0, 6.3); g.fill(); }
+        else { g.fillStyle = D; for (let j = 0; j < 5; j += 2) g.fillRect(b, c + j * u, n, u); }
+        g.strokeStyle = D; g.lineWidth = lw; strokeBox(g, x, y, s, lw);
+      },
+      ghost(g, s) {
+        g.strokeStyle = '#0f380f'; g.lineWidth = 1.5; g.setLineDash([2, 2]);
+        g.strokeRect(2, 2, s - 4, s - 4);
+      },
+    },
+  };
+  let themeName = store.get('theme', 'graphite');
+  if (!THEMES[themeName]) themeName = 'graphite';
+  let THEME = THEMES[themeName];
   const KEYS = Object.keys(SHAPES);
 
 
@@ -523,15 +605,7 @@
   let dpr = 1, bg = null, sprites = {}, ghosts = {}, minis = {}, miniKey = '';
   let rafId = 0, dirty = false;
 
-  function block(c, x, y, size, type) {
-    const pad = Math.max(1, size * 0.04), r = size * 0.2;
-    c.fillStyle = COLORS[type];
-    c.beginPath(); c.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r); c.fill();
-    const g = c.createLinearGradient(0, y, 0, y + size);
-    g.addColorStop(0, 'rgba(255,255,255,.38)'); g.addColorStop(.45, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.28)');
-    c.fillStyle = g;
-    c.beginPath(); c.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r); c.fill();
-  }
+  function block(c, x, y, size, type) { THEME.block(c, x, y, size, type); }
   function sprite(size, scale, paint) {
     const c = document.createElement('canvas');
     c.width = c.height = Math.ceil(size * scale);
@@ -542,18 +616,15 @@
     sprites = {}; ghosts = {}; minis = {};
     for (const t of KEYS) {
       sprites[t] = sprite(cs, dpr, g => block(g, 0, 0, cs, t));
-      ghosts[t] = sprite(cs, dpr, g => {
-        g.strokeStyle = COLORS[t]; g.globalAlpha = .55; g.lineWidth = 2;
-        g.beginPath(); g.roundRect(2, 2, cs - 4, cs - 4, cs * .18); g.stroke();
-      });
+      ghosts[t] = sprite(cs, dpr, g => THEME.ghost(g, cs, t));
       minis[t] = sprite(13, 2, g => block(g, 0, 0, 13, t));
     }
     const W = COLS * cs, H = ROWS * cs;
     bg = sprite(1, 1, () => {});
     bg.width = Math.ceil(W * dpr); bg.height = Math.ceil(H * dpr);
     const g = bg.getContext('2d'); g.scale(dpr, dpr);
-    g.fillStyle = '#090b1a'; g.fillRect(0, 0, W, H);
-    g.strokeStyle = 'rgba(160,170,255,.06)'; g.lineWidth = 1; g.beginPath();
+    g.fillStyle = THEME.bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = THEME.grid; g.lineWidth = 1; g.beginPath();
     for (let x = 1; x < COLS; x++) { g.moveTo(x * cs + .5, 0); g.lineTo(x * cs + .5, H); }
     for (let y = 1; y < ROWS; y++) { g.moveTo(0, y * cs + .5); g.lineTo(W, y * cs + .5); }
     g.stroke();
@@ -578,7 +649,7 @@
 
     if (clearing) {
       const a = .35 + .5 * Math.abs(Math.sin(clearing.t / 40));
-      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fillStyle = `rgba(${THEME.flash},${a})`;
       clearing.rows.forEach(y => ctx.fillRect(0, y * cs, W, cs));
     } else if (state === 'play' || state === 'pause') {
       if (ghostOn) {
@@ -641,36 +712,55 @@
 
   // ---------- overlays ----------
   let deferredInstall = null;
+  const ICONS = {
+    on: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/></svg>',
+    off: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
+  };
+  function applyTheme(name, redraw = true) {
+    if (!THEMES[name]) return;
+    themeName = name; THEME = THEMES[name]; store.set('theme', name);
+    document.documentElement.dataset.theme = name;
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', THEME.meta);
+    if (redraw) { buildSprites(); miniKey = ''; requestDraw(); }
+  }
   function showOverlay() {
     const o = $('overlay'), c = $('card');
-    const seg = `
-      <div class="seg" id="modeSeg">
-        <button data-m="gestures" class="${mode === 'gestures' ? 'on' : ''}">Gestures</button>
-        <button data-m="buttons" class="${mode === 'buttons' ? 'on' : ''}">Buttons</button>
+    const on = (v, a) => v === a ? ' class="on"' : '';
+    const controls = `
+      <div class="sect"><span class="label">Controls</span>
+        <div class="seg" id="modeSeg">
+          <button data-m="gestures"${on(mode, 'gestures')}>Gestures</button>
+          <button data-m="buttons"${on(mode, 'buttons')}>Buttons</button>
+        </div>
+        <p class="how">${mode === 'gestures'
+          ? '<b>Drag</b> sideways to move. <b>Drag down</b> to soft drop, <b>flick down</b> to hard drop. <b>Tap</b> the right or left half to rotate clockwise or back. <b>Press and hold</b> to fall faster. <b>Swipe up</b> or tap Hold to swap.'
+          : 'Arrows move (hold to repeat). Then rotate, hold, and hard drop. Tapping the board rotates too.'}</p>
+      </div>`;
+    const themeSeg = `
+      <div class="sect"><span class="label">Theme</span>
+        <div class="seg" id="themeSeg">${Object.entries(THEMES).map(([k, t]) =>
+          `<button data-t="${k}"${on(themeName, k)}><span class="sw">${t.swatch.map(c => `<i style="background:${c}"></i>`).join('')}</span>${t.label}</button>`).join('')}
+        </div>
       </div>`;
     const toggles = `
-      <div class="toggles">
+      <div class="sect"><div class="toggles">
         <label><input type="checkbox" id="optMusic" ${audio.music ? 'checked' : ''}> Music</label>
         <label><input type="checkbox" id="optSfx" ${audio.sfx ? 'checked' : ''}> Sounds</label>
         <label><input type="checkbox" id="optHaptic" ${haptics ? 'checked' : ''}> Vibration</label>
-        <label><input type="checkbox" id="optGhost" ${ghostOn ? 'checked' : ''}> Ghost</label>
-      </div>`;
-    const how = mode === 'gestures' ? `
-      <div class="how"><b>Drag</b> sideways to move<br><b>Drag down</b> to soft drop · <b>flick down</b> to hard drop<br>
-      <b>Tap</b> right/left side to rotate ⟳/⟲ · <b>hold</b> to fall faster<br><b>Swipe up</b> or tap HOLD to hold</div>` : `
-      <div class="how"><b>◀ ▶</b> move (hold to repeat) · <b>⟳</b> rotate<br><b>⇄</b> hold · <b>⤓</b> hard drop<br>
-      Tap the board to rotate too</div>`;
+        <label><input type="checkbox" id="optGhost" ${ghostOn ? 'checked' : ''}> Ghost piece</label>
+      </div></div>`;
     if (state === 'menu') {
-      c.innerHTML = `<h1>SLOPTRIS</h1><p>Best <b style="color:var(--text)">${best}</b></p>
-        <button class="btn" data-go="start">Play</button>${seg}${how}${toggles}
-        <button class="btn alt" id="installBtn">Install app</button>`;
+      c.innerHTML = `<h1>Sloptris</h1><p>Best score <b>${best}</b></p>
+        <button class="btn" data-go="start">Play</button>
+        <button class="btn alt" id="installBtn">Install app</button>${controls}${themeSeg}${toggles}`;
     } else if (state === 'pause') {
-      c.innerHTML = `<h2>Paused</h2><button class="btn" data-go="resume">Resume</button>
-        <button class="btn alt" data-go="start">Restart</button>${seg}${how}${toggles}`;
+      c.innerHTML = `<h2>Paused</h2>
+        <button class="btn" data-go="resume">Resume</button>
+        <button class="btn alt" data-go="start">Restart</button>${controls}${themeSeg}${toggles}`;
     } else if (state === 'over') {
       c.innerHTML = `<h2>Game over</h2><div class="big">${score}</div>
-        <p>${newBest ? '🎉 New best!' : 'Best ' + best} · ${lines} lines · level ${level}</p>
-        <button class="btn" data-go="start">Play again</button>${seg}`;
+        <p>${newBest ? 'New best score.' : 'Best <b>' + best + '</b>.'} <b>${lines}</b> lines, level <b>${level}</b>.</p>
+        <button class="btn" data-go="start">Play again</button>${themeSeg}`;
     }
     $('installBtn') && ($('installBtn').style.display = deferredInstall ? 'block' : 'none');
     o.classList.add('show');
@@ -681,8 +771,9 @@
     requestAnimationFrame(resize);
   }
   $('overlay').addEventListener('click', e => {
-    const go = e.target.closest('[data-go]'), m = e.target.closest('[data-m]');
-    if (go) { go.dataset.go === 'resume' ? setPaused(false) : newGame(); }
+    const go = e.target.closest('[data-go]'), m = e.target.closest('[data-m]'), th = e.target.closest('[data-t]');
+    if (th) { applyTheme(th.dataset.t); showOverlay(); }
+    else if (go) { go.dataset.go === 'resume' ? setPaused(false) : newGame(); }
     else if (m) { mode = m.dataset.m; store.set('mode', mode); applyMode(); showOverlay(); }
     else if (e.target.id === 'installBtn' && deferredInstall) { deferredInstall.prompt(); deferredInstall = null; showOverlay(); }
   });
@@ -692,7 +783,7 @@
     if (e.target.id === 'optSfx') { audio.setSfx(e.target.checked); audio.rotate(); }
     if (e.target.id === 'optGhost') { ghostOn = e.target.checked; store.set('ghost', ghostOn); requestDraw(); }
   });
-  const syncMute = () => { $('muteBtn').textContent = audio.muted ? '🔇' : '🔊'; $('muteBtn').setAttribute('aria-pressed', audio.muted); };
+  const syncMute = () => { $('muteBtn').innerHTML = audio.muted ? ICONS.off : ICONS.on; $('muteBtn').setAttribute('aria-pressed', audio.muted); };
   $('muteBtn').addEventListener('click', () => { audio.init(); audio.setMuted(!audio.muted); syncMute(); });
   syncMute();
   $('pauseBtn').addEventListener('click', () => state === 'play' ? setPaused(true) : null);
@@ -841,6 +932,7 @@
   // ---------- boot ----------
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
   bag = []; score = 0; lines = 0; level = 1; cur = { type: 'T', m: SHAPES.T, x: 3, y: -5 };
+  applyTheme(themeName, false);
   applyMode(); resize(); updateHUD(); showOverlay();
   [nextC, holdC].forEach(c => c.setTransform(2, 0, 0, 2, 0, 0));
 })();
