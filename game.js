@@ -392,7 +392,7 @@
     stage.setPointerCapture(e.pointerId);
     const now = performance.now();
     gest = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: now,
-             lx: e.clientX, ly: e.clientY, lt: now, samples: [[now, e.clientY]], moved: false, axis: null,
+             lx: e.clientX, ly: e.clientY, lt: now, samples: [[now, e.clientX, e.clientY]], moved: false, axis: null,
              holdT: 0, fastI: 0 };
     // press and hold without dragging = fast fall until release
     gest.holdT = setTimeout(() => {
@@ -405,15 +405,18 @@
     if (!gest || e.pointerId !== gest.id || state !== 'play') return;
     const now = performance.now();
     gest.lx = e.clientX; gest.ly = e.clientY; gest.lt = now;
-    gest.samples.push([now, e.clientY]);
+    gest.samples.push([now, e.clientX, e.clientY]);
     while (gest.samples.length > 2 && now - gest.samples[0][0] > 90) gest.samples.shift();
+    const [ts, xs, ys] = gest.samples[0];                         // finger position ~90ms ago
+    const rdx = e.clientX - xs, rdy = e.clientY - ys;             // what the finger is doing right now
     const adx = Math.abs(e.clientX - gest.x0), ady = Math.abs(e.clientY - gest.y0);
     if (adx > 8 || ady > 8) { gest.moved = true; clearTimeout(gest.holdT); }
-    // Lock to one axis so a slightly crooked swipe doesn't also move the piece. Switching
-    // axes mid-gesture needs a deliberate ~2 cell move on the other one.
-    if (!gest.axis && Math.max(adx, ady) > 12) gest.axis = ady > adx * 1.2 && e.clientY > gest.y0 ? 'v' : 'h';
+    // Lock to one axis so a slightly crooked swipe doesn't also move the piece. Starting down
+    // needs to be clearly vertical. Going from sideways to down needs a quick, mostly-vertical
+    // push right now; slowly drifting downward while sliding sideways never counts.
+    if (!gest.axis && Math.max(adx, ady) > 12) gest.axis = ady > adx * 1.8 && e.clientY > gest.y0 ? 'v' : 'h';
     if (gest.axis === 'v' && Math.abs(e.clientX - gest.ax) > cs * 2.2) { gest.axis = 'h'; gest.ax = e.clientX; }
-    else if (gest.axis === 'h' && e.clientY - gest.ay > cs * 2.2) { gest.axis = 'v'; gest.ay = e.clientY; }
+    else if (gest.axis === 'h' && rdy > cs * 1.2 && rdy > Math.abs(rdx) * 2 && rdy / Math.max(1, now - ts) > .5) { gest.axis = 'v'; gest.ay = e.clientY; }
     if (gest.axis === 'h') {
       const stepX = cs * 0.85;
       while (Math.abs(e.clientX - gest.ax) >= stepX) {
@@ -432,16 +435,16 @@
     const gs = gest; gest = null;
     clearTimeout(gs.holdT); clearInterval(gs.fastI);
     if (cancelled || state !== 'play' || gs.fastI) return;
-    const [ts, ys] = gs.samples[0];
-    const vy = (gs.ly - ys) / Math.max(1, gs.lt - ts);            // px/ms over the last ~90ms
+    const [ts, xs, ys] = gs.samples[0];                            // the last ~90ms of movement
+    const rdx = gs.lx - xs, rdy = gs.ly - ys, vy = rdy / Math.max(1, gs.lt - ts);
     const dx = gs.lx - gs.x0, dy = gs.ly - gs.y0;
     if (!gs.moved && performance.now() - gs.t0 < 350) {            // tap: rotate by which side was hit
       const r = stage.getBoundingClientRect();
       rotate(e.clientX > r.left + r.width / 2 ? 1 : -1);
-    } else if (vy > 0.9 && dy > cs * 1.5 && (gs.axis === 'v' || Math.abs(dx) < Math.abs(dy))) {
-      hardDrop();
-    } else if (dy < -cs * 2.5 && Math.abs(dx) < Math.abs(dy) * 0.7) {
-      hold();
+    } else if (vy > 0.9 && rdy > cs * 1.5 && Math.abs(rdx) < rdy * .5) {
+      hardDrop();                                                  // a real downward flick at the end
+    } else if (gs.axis !== 'h' && dy < -cs * 2.5 && Math.abs(dx) < Math.abs(dy) * .7) {
+      hold();                                                      // swipe up (never from a sideways slide)
     }
   }
   stage.addEventListener('pointerup', e => endGesture(e, false));
