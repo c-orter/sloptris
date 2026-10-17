@@ -197,7 +197,7 @@
     L: [[0,0,1],[1,1,1],[0,0,0]],
   };
   // Canvas side of the themes. Each theme draws its own blocks; Handheld tells pieces apart
-  // by pattern (it only has four greens), the other two by flat colour.
+  // by tone and a small mark (it only has four greens), the other two by flat colour.
   const strokeBox = (g, x, y, s, w) => g.strokeRect(x + 1 + w / 2, y + 1 + w / 2, s - 2 - w, s - 2 - w);
   const THEMES = {
     graphite: {
@@ -231,24 +231,23 @@
       },
     },
     handheld: {
-      label: 'Handheld', meta: '#8bac0f', bg: '#9bbc0f', grid: 'rgba(15,56,15,.13)', flash: '15,56,15',
+      label: 'Handheld', meta: '#8bac0f', bg: '#9bbc0f', grid: 'rgba(15,56,15,.07)', flash: '15,56,15',
       swatch: ['#9bbc0f', '#306230', '#0f380f'],
       colors: {},
+      // Every block is a solid dark tile of equal weight (so the stack reads as clean
+      // silhouettes); pieces differ by tone (dark/mid) and one small light mark.
       block(g, x, y, s, t) {
-        const D = '#0f380f', M = '#306230', L = '#9bbc0f', b = x + 1, c = y + 1, n = s - 2, u = n / 5;
-        const lw = Math.max(1, s * .07);
-        g.fillStyle = L; g.fillRect(b, c, n, n);
-        if (t === 'I') { g.fillStyle = D; g.fillRect(b, c, n, n); }
-        else if (t === 'O') { g.fillStyle = M; g.fillRect(b, c, n, n); g.fillStyle = L; g.fillRect(b + u * 1.5, c + u * 1.5, u * 2, u * 2); }
-        else if (t === 'T') { g.strokeStyle = D; g.lineWidth = lw * 2; g.strokeRect(b + lw, c + lw, n - lw * 2, n - lw * 2); }
-        else if (t === 'S') { g.fillStyle = D; for (let i = 0; i < 5; i += 2) g.fillRect(b + i * u, c, u, n); }
-        else if (t === 'Z') { g.fillStyle = D; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) if ((i + j) % 2 === 0) g.fillRect(b + i * u, c + j * u, u, u); }
-        else if (t === 'J') { g.fillStyle = D; g.beginPath(); g.arc(b + n / 2, c + n / 2, n * .2, 0, 6.3); g.fill(); }
-        else { g.fillStyle = D; for (let j = 0; j < 5; j += 2) g.fillRect(b, c + j * u, n, u); }
-        g.strokeStyle = D; g.lineWidth = lw; strokeBox(g, x, y, s, lw);
+        const D = '#0f380f', M = '#306230', L = '#9bbc0f', b = x + 1, c = y + 1, n = s - 2, m = Math.round(n * .3);
+        const mid = 'OSJ'.includes(t);
+        g.fillStyle = mid ? M : D; g.fillRect(b, c, n, n);
+        g.fillStyle = L;
+        if (t === 'T' || t === 'S') g.fillRect(b + (n - m) / 2, c + (n - m) / 2, m, m);                        // square
+        else if (t === 'Z' || t === 'J') { g.beginPath(); g.arc(b + n / 2, c + n / 2, m * .62, 0, 6.3); g.fill(); } // dot
+        else if (t === 'L') g.fillRect(b + n * .2, c + (n - m * .5) / 2, n * .6, m * .5);                      // bar
+        // I and O stay plain
       },
       ghost(g, s) {
-        g.strokeStyle = '#0f380f'; g.lineWidth = 1.5; g.setLineDash([2, 2]);
+        g.strokeStyle = '#0f380f'; g.globalAlpha = .55; g.lineWidth = 2;
         g.strokeRect(2, 2, s - 4, s - 4);
       },
     },
