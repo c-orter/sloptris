@@ -183,25 +183,90 @@
     let muted = store.get('muted', false), musicOn = store.get('music', true), sfxOn = store.get('sfx', true);
     const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
-    // Korobeiniki (Tetris "Type A"), traditional folk tune. [midi note, beats]; 0 = rest.
-    const MELODY = [
-      [76,1],[71,.5],[72,.5],[74,1],[72,.5],[71,.5],
-      [69,1],[69,.5],[72,.5],[76,1],[74,.5],[72,.5],
-      [71,1.5],[72,.5],[74,1],[76,1],
-      [72,1],[69,1],[69,2],
-      [74,1.5],[77,.5],[81,1],[79,.5],[77,.5],
-      [76,1.5],[72,.5],[76,1],[74,.5],[72,.5],
-      [71,1],[71,.5],[72,.5],[74,1],[76,1],
-      [72,1],[69,1],[69,2],
+    // ---- music: a small playlist so the loop doesn't wear thin ----
+    // Tunes are [midi note, beats] lists (0 = rest). Korobeiniki and the Minuet in G are
+    // traditional/public domain; "Neon Run" is an original.
+    const chordTones = { E: [64, 68, 71], Am: [69, 72, 76], Dm: [62, 65, 69], C: [60, 64, 67],
+                         F: [65, 69, 72], G: [67, 71, 74], D: [62, 66, 69] };
+    const TRACKS = [
+      { name: 'Korobeiniki', bpm: 150, bar: 4, wave: 'square', drums: true,
+        melody: [
+          [76,1],[71,.5],[72,.5],[74,1],[72,.5],[71,.5],
+          [69,1],[69,.5],[72,.5],[76,1],[74,.5],[72,.5],
+          [71,1.5],[72,.5],[74,1],[76,1],
+          [72,1],[69,1],[69,2],
+          [74,1.5],[77,.5],[81,1],[79,.5],[77,.5],
+          [76,1.5],[72,.5],[76,1],[74,.5],[72,.5],
+          [71,1],[71,.5],[72,.5],[74,1],[76,1],
+          [72,1],[69,1],[69,2]],
+        roots: [40, 45, 40, 45, 50, 48, 40, 45], chords: ['E','Am','E','Am','Dm','C','E','Am'], bass: 'pulse' },
+      { name: 'Minuet in G', bpm: 128, bar: 3, wave: 'pulse25', drums: false,
+        melody: [
+          [74,1],[67,.5],[69,.5],[71,.5],[72,.5],  [74,1],[67,1],[67,1],
+          [76,1],[72,.5],[74,.5],[76,.5],[78,.5],  [79,1],[67,1],[67,1],
+          [72,1],[74,.5],[72,.5],[71,.5],[69,.5],  [71,1],[72,.5],[71,.5],[69,.5],[67,.5],
+          [66,1],[67,.5],[69,.5],[71,.5],[67,.5],  [71,1],[69,2],
+          [74,1],[67,1],[67,1],                    [72,1.5],[74,.5],[72,.5],[71,.5],
+          [71,1],[72,.5],[71,.5],[69,.5],[67,.5],  [66,1],[67,.5],[69,.5],[71,.5],[67,.5],
+          [71,1],[69,2],                           [74,1],[71,.5],[72,.5],[74,.5],[71,.5],
+          [72,1],[69,.5],[71,.5],[72,.5],[69,.5],  [71,1],[67,2]],
+        roots: [43, 43, 48, 43, 48, 43, 50, 50, 43, 48, 43, 50, 50, 43, 48, 43],
+        chords: ['G','G','C','G','C','G','D','D','G','C','G','D','D','G','C','G'], bass: 'waltz' },
+      { name: 'Neon Run', bpm: 158, bar: 4, wave: 'pulse25', drums: true,
+        melody: [
+          [69,.5],[72,.5],[76,.5],[72,.5],[81,1],[76,1],
+          [77,.5],[81,.5],[84,.5],[81,.5],[77,1],[72,1],
+          [72,.5],[76,.5],[79,.5],[76,.5],[84,1],[79,1],
+          [71,.5],[74,.5],[79,.5],[74,.5],[83,1],[79,.5],[74,.5],
+          [76,1],[76,.5],[77,.5],[79,1],[77,.5],[76,.5],
+          [77,1],[77,.5],[79,.5],[81,1],[79,.5],[77,.5],
+          [74,1],[77,.5],[81,.5],[79,1],[77,.5],[74,.5],
+          [76,1.5],[80,.5],[83,1],[80,1]],
+        roots: [45, 41, 48, 43, 45, 41, 50, 40], chords: ['Am','F','C','G','Am','F','Dm','E'], bass: 'drive' },
     ];
-    const BASS_ROOTS = [40, 45, 40, 45, 50, 48, 40, 45];   // E A E A D C E A
-    const EVENTS = []; let LOOP = 0;
-    for (const [m, d] of MELODY) { if (m) EVENTS.push({ beat: LOOP, m, d, v: 'lead' }); LOOP += d; }
-    BASS_ROOTS.forEach((r, bar) => { for (let i = 0; i < 4; i++) EVENTS.push({ beat: bar * 4 + i, m: r + (i % 2 ? 12 : 0), d: .45, v: 'bass' }); });
-    EVENTS.sort((a, b) => a.beat - b.beat);
+    // Pulse waves (NES-style duty cycles) built from Fourier terms.
+    const pulseWaves = {};
+    function pulse(duty) {
+      const N = 32, re = new Float32Array(N), im = new Float32Array(N);
+      for (let n = 1; n < N; n++) re[n] = 2 / (n * Math.PI) * Math.sin(n * Math.PI * duty);
+      return ac.createPeriodicWave(re, im);
+    }
+    const wave = w => w === 'square' ? 'square' : (pulseWaves[w] || (pulseWaves[w] = pulse(w === 'pulse25' ? .25 : .125)));
 
-    let ei = 0, loopStart = 0, spb = .4;
-    const beatLen = () => 60 / (150 + Math.min(level - 1, 12) * 6);
+    function buildEvents(tr, full) {
+      const ev = []; let beat = 0;
+      for (const [m, d] of tr.melody) { if (m) ev.push({ beat, m, d, v: 'lead' }); beat += d; }
+      const loop = beat, bars = loop / tr.bar;
+      for (let b = 0; b < bars; b++) {
+        const r = tr.roots[b], t0 = b * tr.bar;
+        if (tr.bass === 'waltz') {
+          ev.push({ beat: t0, m: r, d: .9, v: 'bass' });
+          ev.push({ beat: t0 + 1, m: r + 19, d: .4, v: 'bass' }, { beat: t0 + 2, m: r + 19, d: .4, v: 'bass' });
+        } else if (tr.bass === 'drive') {
+          for (let i = 0; i < 8; i++) ev.push({ beat: t0 + i * .5, m: r + (i % 2 ? 12 : 0), d: .45, v: 'bass' });
+        } else {
+          for (let i = 0; i < 4; i++) ev.push({ beat: t0 + i, m: r + (i % 2 ? 12 : 0), d: .45, v: 'bass' });
+        }
+        if (!full) continue;
+        // extra layer on repeat passes: chord arpeggio, plus drums on the 4/4 tunes
+        const tones = chordTones[tr.chords[b]];
+        for (let i = 0; i < tr.bar * 2; i++) ev.push({ beat: t0 + i * .5, m: tones[[0,1,2,1][i % 4]] + 12, d: .4, v: 'arp' });
+        if (tr.drums) {
+          ev.push({ beat: t0, v: 'kick' }, { beat: t0 + 2, v: 'kick' }, { beat: t0 + 1, v: 'snare' }, { beat: t0 + 3, v: 'snare' });
+          for (let i = 0; i < 4; i++) ev.push({ beat: t0 + i + .5, v: 'hat' });
+        }
+      }
+      ev.sort((a, b) => a.beat - b.beat);
+      return { ev, loop };
+    }
+    // Order of play: [track, full-arrangement?]. Starts on the familiar tune.
+    const PLAYLIST = [[0, false], [0, true], [2, false], [2, true], [1, false], [1, true]];
+    const cache = {};
+    const arrangement = ([t, full]) => cache[t + (full ? 'f' : 'b')] || (cache[t + (full ? 'f' : 'b')] = buildEvents(TRACKS[t], full));
+
+    let ei = 0, loopStart = 0, spb = .4, pi = 0, cur_ = null;
+    const beatLen = tr => 60 / (tr.bpm * (1 + Math.min(level - 1, 12) * .03));
+    function loadPlaylist(i) { pi = i; cur_ = arrangement(PLAYLIST[pi]); cur_.tr = TRACKS[PLAYLIST[pi][0]]; ei = 0; spb = beatLen(cur_.tr); }
 
     function init() {
       if (ac) return;
@@ -222,27 +287,38 @@
     }
     function note(freq, t, dur, type, vol, dest, slideTo) {
       const o = ac.createOscillator(), g = ac.createGain();
-      o.type = type; o.frequency.setValueAtTime(freq, t);
+      if (typeof type === 'string') o.type = type; else o.setPeriodicWave(type);
+      o.frequency.setValueAtTime(freq, t);
       if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
       g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + .006);
       g.gain.exponentialRampToValueAtTime(.0001, t + dur);
       o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + .03);
     }
-    function noise(t, dur, vol, f0, f1) {
+    function noise(t, dur, vol, f0, f1, ftype = 'lowpass', dest = sfxG) {
       const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-      src.buffer = noiseBuf; f.type = 'lowpass';
+      src.buffer = noiseBuf; f.type = ftype;
       f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
       g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-      src.connect(f); f.connect(g); g.connect(sfxG); src.start(t); src.stop(t + dur + .02);
+      src.connect(f); f.connect(g); g.connect(dest); src.start(t); src.stop(t + dur + .02);
     }
     function sched() {
-      if (!ac) return;
+      if (!ac || !cur_) return;
       while (true) {
-        const ev = EVENTS[ei], t = loopStart + ev.beat * spb;
+        const ev = cur_.ev[ei], t = loopStart + ev.beat * spb;
         if (t > ac.currentTime + .6) break;
-        if (ev.v === 'lead') note(mtof(ev.m), t, ev.d * spb * .9, 'square', .16, musicG);
-        else note(mtof(ev.m), t, ev.d * spb, 'triangle', .3, musicG);
-        if (++ei >= EVENTS.length) { ei = 0; loopStart += LOOP * spb; spb = beatLen(); }
+        const tr = cur_.tr;
+        switch (ev.v) {
+          case 'lead': note(mtof(ev.m), t, ev.d * spb * .9, wave(tr.wave), .16, musicG); break;
+          case 'bass': note(mtof(ev.m), t, ev.d * spb, 'triangle', .3, musicG); break;
+          case 'arp': note(mtof(ev.m), t, ev.d * spb, wave('pulse12'), .05, musicG); break;
+          case 'kick': note(160, t, .12, 'sine', .55, musicG, 42); break;
+          case 'snare': noise(t, .1, .16, 2500, 1500, 'highpass', musicG); break;
+          case 'hat': noise(t, .03, .06, 7000, 7000, 'highpass', musicG); break;
+        }
+        if (++ei >= cur_.ev.length) {                       // end of pass: move to the next tune
+          loopStart += cur_.loop * spb;
+          loadPlaylist((pi + 1) % PLAYLIST.length);
+        }
       }
     }
     const sfx = fn => () => {
@@ -266,7 +342,7 @@
       startMusic() {
         if (!ac || !musicOn || muted) return;
         this.stopMusic(); resume();
-        ei = 0; spb = beatLen(); loopStart = ac.currentTime + .1; started = true;
+        loadPlaylist(0); loopStart = ac.currentTime + .1; started = true;
         timer = setInterval(sched, 150);
       },
       ensureMusic() {
