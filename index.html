@@ -341,14 +341,15 @@
       ev.sort((a, b) => a.beat - b.beat);
       return { ev, loop };
     }
-    // Order of play: [track, full-arrangement?]. Starts on the familiar tune.
-    const PLAYLIST = [[0, false], [0, true], [2, false], [2, true], [1, false], [1, true]];
+    // Order of play: [track, full-arrangement?, passes]. Each tune gets a minute or more
+    // before the music moves on. Starts on the familiar tune.
+    const PLAYLIST = [[0, false, 2], [0, true, 4], [2, false, 2], [2, true, 4], [1, false, 2], [1, true, 2]];
     const cache = {};
     const arrangement = ([t, full]) => cache[t + (full ? 'f' : 'b')] || (cache[t + (full ? 'f' : 'b')] = buildEvents(TRACKS[t], full));
 
-    let ei = 0, loopStart = 0, spb = .4, pi = 0, cur_ = null;
+    let ei = 0, loopStart = 0, spb = .4, pi = 0, passes = 0, cur_ = null;
     const beatLen = tr => 60 / (tr.bpm * (1 + Math.min(level - 1, 12) * .03));
-    function loadPlaylist(i) { pi = i; cur_ = arrangement(PLAYLIST[pi]); cur_.tr = TRACKS[PLAYLIST[pi][0]]; ei = 0; spb = beatLen(cur_.tr); }
+    function loadPlaylist(i, again) { pi = i; passes = again ? passes : 0; cur_ = arrangement(PLAYLIST[pi]); cur_.tr = TRACKS[PLAYLIST[pi][0]]; ei = 0; spb = beatLen(cur_.tr); }
 
     function init() {
       if (ac) return;
@@ -399,7 +400,8 @@
         }
         if (++ei >= cur_.ev.length) {                       // end of pass: move to the next tune
           loopStart += cur_.loop * spb;
-          loadPlaylist((pi + 1) % PLAYLIST.length);
+          if (++passes < PLAYLIST[pi][2]) loadPlaylist(pi, true);
+          else loadPlaylist((pi + 1) % PLAYLIST.length);
         }
       }
     }
