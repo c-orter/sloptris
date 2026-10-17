@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Sloptris</title>
 <meta name="description" content="Offline Tetris. Install it and play anywhere.">
-<meta name="theme-color" content="#0000bc">
+<meta name="theme-color" content="#efeae0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sloptris">
@@ -14,34 +14,42 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
-  /* Themes drawn from how Tetris actually looked.
-     NES (default): the 1989 console version. PC Text Mode: the 1986 DOS port of the original
-     Elektronika 60 game, built from bracket characters. Guideline: the modern standard look. */
+  /* Four themes, each built around an idea about Tetris itself:
+     Bricks (stacking toy bricks), Constructivist (Soviet-era poster), Chalkboard (the maths-puzzle
+     origins, hand-drawn) and Stained Glass (the cathedral). All keep pieces colour-coded. */
   :root {
     --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
-    /* NES */
-    --bg: #0000bc; --surface: #000; --ink: #fcfcfc; --hi: #fcfcfc; --dim: #bcbcbc; --rule: #5c5c5c;
-    --accent: #fcfcfc; --accent-ink: #000; --veil: rgba(0,0,140,.95);
-    --bd-tile: 3px solid #fcfcfc; --bd-hard: 3px solid #fcfcfc;
-    --r: 0; --tt: uppercase; --ls: .08em; --num-w: 700;
-    --clip: polygon(0 3px,3px 3px,3px 0,calc(100% - 3px) 0,calc(100% - 3px) 3px,100% 3px,100% calc(100% - 3px),calc(100% - 3px) calc(100% - 3px),calc(100% - 3px) 100%,3px 100%,3px calc(100% - 3px),0 calc(100% - 3px));
-    --font: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    /* Bricks (default) */
+    --bg: #efeae0; --surface: #fbf8f1; --ink: #242220; --hi: #242220; --dim: #7a7468; --rule: #d8d1c3;
+    --accent: #d3281f; --accent-ink: #fff; --veil: rgba(239,234,224,.95);
+    --bd-tile: 2px solid #242220; --bd-hard: 3px solid #242220;
+    --r: 10px; --r-board: 6px; --clip: none; --tt: none; --ls: .1em; --num-w: 800;
+    --font: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Hiragino Maru Gothic ProN", Nunito, system-ui, sans-serif;
   }
-  /* PC text mode: CGA grey on black, double-line boxes, reverse-video selection */
-  :root[data-theme="pc"] {
-    --bg: #000; --surface: #000; --ink: #aaa; --hi: #fff; --dim: #00aaaa; --rule: #555;
-    --accent: #ffff55; --accent-ink: #000; --veil: rgba(0,0,0,.94);
-    --bd-tile: 3px double #aaa; --bd-hard: 3px double #aaa;
-    --clip: none; --tt: uppercase; --ls: .06em; --num-w: 400;
+  /* Constructivist: cream paper, black and red, heavy condensed capitals */
+  :root[data-theme="constructivist"] {
+    --bg: #e9dfc7; --surface: #f4ecd9; --ink: #151515; --hi: #151515; --dim: #6b6454; --rule: #151515;
+    --accent: #d4281b; --accent-ink: #f4ecd9; --veil: rgba(233,223,199,.96);
+    --bd-tile: 3px solid #151515; --bd-hard: 4px solid #151515;
+    --r: 0; --r-board: 0; --tt: uppercase; --ls: .04em; --num-w: 900;
+    --font: "Haettenschweiler", "Impact", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif;
   }
-  /* Guideline: black well, vivid standard colours, beveled minos */
-  :root[data-theme="guideline"] {
-    --bg: #0b0b0c; --surface: #131314; --ink: #f2f2f2; --hi: #fff; --dim: #86868b; --rule: #2a2a2c;
-    --accent: #00e5e5; --accent-ink: #000; --veil: rgba(8,8,9,.94);
-    --bd-tile: 1px solid #2a2a2c; --bd-hard: 1px solid #3a3a3d;
-    --r: 2px; --clip: none; --tt: uppercase; --ls: .14em; --num-w: 700;
-    --font: "Bahnschrift", "DIN Alternate", "Avenir Next Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  /* Chalkboard: slate green, chalk lines, wobbly hand-drawn borders */
+  :root[data-theme="chalk"] {
+    --bg: #1b2521; --surface: #25312d; --ink: #ece4d2; --hi: #fffaf0; --dim: #9aa79f; --rule: rgba(236,228,210,.35);
+    --accent: #f5df83; --accent-ink: #25312d; --veil: rgba(27,37,33,.95);
+    --bd-tile: 2px solid rgba(236,228,210,.85); --bd-hard: 2px solid rgba(236,228,210,.85);
+    --r: 18px 5px 16px 6px / 6px 16px 5px 18px; --r-board: 5px 3px 6px 3px; --tt: none; --ls: .02em; --num-w: 700;
+    --font: "Bradley Hand", "Chalkboard SE", "Marker Felt", "Segoe Print", "Comic Sans MS", cursive;
+  }
+  /* Stained glass: lead lines, jewel colours, serif */
+  :root[data-theme="glass"] {
+    --bg: #120f0d; --surface: #1a1613; --ink: #e9dcc4; --hi: #fff3da; --dim: #a08f72; --rule: #3a3128;
+    --accent: #c2282f; --accent-ink: #fff3da; --veil: rgba(14,11,10,.95);
+    --bd-tile: 2px solid #3a3128; --bd-hard: 4px solid #2b241d;
+    --r: 2px; --r-board: 2px; --tt: uppercase; --ls: .16em; --num-w: 700;
+    --font: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); overscroll-behavior: none; }
@@ -75,7 +83,7 @@
 
   /* Playfield */
   #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; position: relative; touch-action: none; }
-  #board { border: var(--bd-hard); border-radius: var(--r); clip-path: var(--clip); touch-action: none; }
+  #board { border: var(--bd-hard); border-radius: var(--r-board); touch-action: none; }
   #hint {
     position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 12px; color: var(--dim);
     pointer-events: none; opacity: 0; transition: opacity .4s;
@@ -118,6 +126,11 @@
     letter-spacing: var(--ls); text-transform: var(--tt); display: flex; align-items: center; justify-content: center; gap: 6px; }
   .seg button + button { border-left: 2px dotted var(--rule); }
   .seg button.on { background: var(--ink); color: var(--surface); }
+  #themeSeg { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  #themeSeg button { white-space: nowrap; font-size: 11px; padding: 11px 4px; }
+  #themeSeg button + button { border-left: 0; }
+  #themeSeg button:nth-child(even) { border-left: 2px dotted var(--rule); }
+  #themeSeg button:nth-child(n+3) { border-top: 2px dotted var(--rule); }
   .sw { display: inline-flex; } .sw i { width: 7px; height: 12px; display: block; }
   .how { font-size: 13px; color: var(--dim); line-height: 1.65; margin: 0; }
   .how b { color: var(--hi); font-weight: 600; }
@@ -125,9 +138,17 @@
   .toggles label { display: flex; align-items: center; gap: 8px; }
   .toggles input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
   #installBtn { display: none; }
-  /* DOS touches: menu items and the title in square brackets */
-  :root[data-theme="pc"] .btn::before, :root[data-theme="pc"] .card h1::before { content: "[ "; }
-  :root[data-theme="pc"] .btn::after, :root[data-theme="pc"] .card h1::after { content: " ]"; }
+  /* Per-theme flourishes */
+  :root:not([data-theme]) .btn, :root[data-theme="bricks"] .btn { border-bottom-width: 5px; }
+  :root:not([data-theme]) #pad button, :root[data-theme="bricks"] #pad button { border-bottom-width: 5px; }
+  :root[data-theme="constructivist"] .card h1 {
+    align-self: flex-start; background: var(--accent); color: var(--accent-ink); padding: 8px 14px 6px;
+    transform: rotate(-3deg); font-size: 34px;
+  }
+  :root[data-theme="constructivist"] .sect { border-top: 3px solid #151515; }
+  :root[data-theme="chalk"] .sect { border-top: 2px dashed var(--rule); }
+  :root[data-theme="chalk"] .seg button + button { border-left: 2px dashed var(--rule); }
+  :root[data-theme="glass"] .card h1 { letter-spacing: .3em; }
 
   @media (min-width: 560px) and (min-height: 700px) {
     #app { max-width: 520px; margin: 0 auto; width: 100%; }
@@ -195,66 +216,128 @@
     J: [[1,0,0],[1,1,1],[0,0,0]],
     L: [[0,0,1],[1,1,1],[0,0,0]],
   };
-  // Canvas side of the themes. Each draws its own blocks and well; all keep pieces colour-coded.
+  // Canvas side of the themes. Each draws its own blocks and well. `v` is a per-cell variant
+  // index (themes with `variants > 1` use it for hand-made irregularity).
   const mkPoly = (g, pts, fill) => { g.fillStyle = fill; g.beginPath(); pts.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.closePath(); g.fill(); };
-  // The 1984 original drew every block as "[]" in a text terminal.
-  function brackets(g, x, y, s, color, fillA) {
-    const a = s * .14, w = Math.max(2, Math.round(s * .13)), k = s * .27, h = s - a * 2;
-    g.fillStyle = color;
-    if (fillA) { g.globalAlpha = fillA; g.fillRect(x + a, y + a, s - a * 2, h); g.globalAlpha = 1; }
-    g.fillRect(x + a, y + a, w, h); g.fillRect(x + a, y + a, k, w); g.fillRect(x + a, y + s - a - w, k, w);
-    g.fillRect(x + s - a - w, y + a, w, h); g.fillRect(x + s - a - k, y + a, k, w); g.fillRect(x + s - a - k, y + s - a - w, k, w);
+  const disc = (g, cx, cy, r) => { g.beginPath(); g.arc(cx, cy, r, 0, 6.2832); g.fill(); };
+  function shade(hex, k) {                        // k > 0 lightens, k < 0 darkens
+    const n = parseInt(hex.slice(1), 16), t = k < 0 ? 0 : 255, a = Math.abs(k);
+    const ch = sh => Math.round(((n >> sh) & 255) * (1 - a) + t * a);
+    return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+  }
+  const rng = seed => () => {                      // small seeded PRNG so irregularity is repeatable
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  function chalkPath(g, x, y, s, t, v) {
+    const r = rng(t.charCodeAt(0) * 17 + v * 131 + 7), j = s * .045, p = s * .1;
+    const pt = (px, py) => [px + (r() - .5) * 2 * j, py + (r() - .5) * 2 * j];
+    const P = [pt(x + p, y + p), pt(x + s - p, y + p), pt(x + s - p, y + s - p), pt(x + p, y + s - p)];
+    g.beginPath(); P.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.closePath();
   }
   const THEMES = {
-    nes: {
-      label: 'NES', meta: '#0000bc', flash: '255,255,255', swatch: ['#0000bc', '#fcfcfc', '#f83800'],
-      // NES palette values
-      colors: { I:'#3cbcfc', O:'#f8d878', T:'#d800cc', S:'#58d854', Z:'#f83800', J:'#0058f8', L:'#fca044' },
-      paintBg(g, W, H) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); },
-      block(g, x, y, s, t) {
-        const u = s / 8;
-        g.fillStyle = '#000'; g.fillRect(x, y, s, s);
-        g.fillStyle = this.colors[t]; g.fillRect(x + u, y + u, s - 2 * u, s - 2 * u);
-        g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(x + u, y + s - 2 * u, s - 2 * u, u); g.fillRect(x + s - 2 * u, y + u, u, s - 2 * u);
-        g.fillStyle = '#fff'; g.fillRect(x + 2 * u, y + 2 * u, 2 * u, 2 * u);           // the little shine
-      },
-      ghost(g, s, t) { g.strokeStyle = this.colors[t]; g.globalAlpha = .55; g.lineWidth = Math.max(2, s / 8); g.strokeRect(s / 8, s / 8, s * .75, s * .75); },
-    },
-    pc: {
-      label: 'PC Text', meta: '#000000', flash: '255,255,255', swatch: ['#000', '#55ffff', '#ffff55'],
-      // EGA text-mode colours
-      colors: { I:'#55ffff', O:'#ffff55', T:'#ff55ff', S:'#55ff55', Z:'#ff5555', J:'#6a6aff', L:'#ffaa00' },
-      paintBg(g, W, H, cs) {                       // empty cells were dots
-        g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.fillStyle = '#6a6a6a';
-        const d = Math.max(2, Math.round(cs * .07));
-        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) g.fillRect(x * cs + (cs - d) / 2, y * cs + (cs - d) / 2, d, d);
-      },
-      block(g, x, y, s, t) { brackets(g, x, y, s, this.colors[t], .2); },
-      ghost(g, s) { brackets(g, 0, 0, s, '#777', 0); },
-    },
-    guideline: {
-      label: 'Guideline', meta: '#0b0b0c', flash: '255,255,255', swatch: ['#000', '#00f0f0', '#f0f000'],
-      colors: { I:'#00e5e5', O:'#f0e000', T:'#a020f0', S:'#00e000', Z:'#f01818', J:'#2a52ff', L:'#f09000' },
+    bricks: {
+      // Plastic toy bricks on a baseplate: studs on top, a darker lip underneath.
+      label: 'Bricks', meta: '#efeae0', flash: '255,255,255', swatch: ['#d3281f', '#f7c928', '#2a6bc9'],
+      colors: { I:'#2fb3e8', O:'#f7c928', T:'#8a4fbf', S:'#2f9e55', Z:'#d3281f', J:'#2a6bc9', L:'#f58a1f' },
       paintBg(g, W, H, cs) {
-        g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-        g.strokeStyle = '#1b1b1d'; g.lineWidth = 1; g.beginPath();
+        g.fillStyle = '#a7a6a3'; g.fillRect(0, 0, W, H);
+        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+          const cx = x * cs + cs / 2, cy = y * cs + cs / 2, r = cs * .27;
+          g.fillStyle = '#8c8b88'; disc(g, cx, cy + cs * .06, r);
+          g.fillStyle = '#b8b7b4'; disc(g, cx, cy, r);
+          g.fillStyle = 'rgba(255,255,255,.35)'; disc(g, cx - r * .3, cy - r * .3, r * .32);
+        }
+      },
+      block(g, x, y, s, t) {
+        const c = this.colors[t], p = s * .035, X = x + p, Y = y + p, S = s - p * 2, r = s * .13, lip = Math.max(2, s * .1);
+        g.fillStyle = shade(c, -.3); g.beginPath(); g.roundRect(X, Y, S, S, r); g.fill();
+        g.fillStyle = c; g.beginPath(); g.roundRect(X, Y, S, S - lip, r); g.fill();
+        g.fillStyle = shade(c, .3); g.fillRect(X + r, Y, S - r * 2, Math.max(1, s * .045));
+        const cx = X + S / 2, cy = Y + (S - lip) / 2, sr = S * .28;
+        g.fillStyle = shade(c, -.3); disc(g, cx, cy + lip * .4, sr);
+        g.fillStyle = shade(c, .1); disc(g, cx, cy, sr);
+        g.fillStyle = 'rgba(255,255,255,.45)'; disc(g, cx - sr * .32, cy - sr * .32, sr * .3);
+      },
+      ghost(g, s, t) { g.strokeStyle = shade(this.colors[t], -.2); g.globalAlpha = .75; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.roundRect(2, 2, s - 4, s - 4, s * .13); g.stroke(); },
+    },
+    constructivist: {
+      // Soviet poster: flat primaries, black outlines, cream paper.
+      label: 'Constructivist', meta: '#e9dfc7', flash: '21,21,21', swatch: ['#d4281b', '#f2b705', '#151515'],
+      colors: { I:'#2a6db5', O:'#f2b705', T:'#161616', S:'#3a8f6a', Z:'#d4281b', J:'#9a9388', L:'#e8742a' },
+      paintBg(g, W, H, cs) {
+        g.fillStyle = '#f4ecd9'; g.fillRect(0, 0, W, H);
+        g.strokeStyle = 'rgba(21,21,21,.1)'; g.lineWidth = 1; g.beginPath();
         for (let x = 1; x < COLS; x++) { g.moveTo(x * cs + .5, 0); g.lineTo(x * cs + .5, H); }
         for (let y = 1; y < ROWS; y++) { g.moveTo(0, y * cs + .5); g.lineTo(W, y * cs + .5); }
         g.stroke();
       },
-      block(g, x, y, s, t) {                       // flat tile with the classic four-sided bevel
-        const p = .5, X = x + p, Y = y + p, S = s - p * 2, b = Math.max(2, S * .14);
-        g.fillStyle = this.colors[t]; g.fillRect(X, Y, S, S);
-        mkPoly(g, [[X, Y], [X + S, Y], [X + S - b, Y + b], [X + b, Y + b]], 'rgba(255,255,255,.5)');
-        mkPoly(g, [[X, Y], [X + b, Y + b], [X + b, Y + S - b], [X, Y + S]], 'rgba(255,255,255,.26)');
-        mkPoly(g, [[X, Y + S], [X + b, Y + S - b], [X + S - b, Y + S - b], [X + S, Y + S]], 'rgba(0,0,0,.4)');
-        mkPoly(g, [[X + S, Y], [X + S, Y + S], [X + S - b, Y + S - b], [X + S - b, Y + b]], 'rgba(0,0,0,.28)');
+      block(g, x, y, s, t) {
+        const w = Math.max(2, s * .09);
+        g.fillStyle = this.colors[t]; g.fillRect(x + 1, y + 1, s - 2, s - 2);
+        g.strokeStyle = '#151515'; g.lineWidth = w; g.strokeRect(x + 1 + w / 2, y + 1 + w / 2, s - 2 - w, s - 2 - w);
+        g.strokeStyle = 'rgba(244,236,217,.4)'; g.lineWidth = 1;                       // keeps black pieces readable
+        g.strokeRect(x + 1 + w * 1.5, y + 1 + w * 1.5, s - 2 - w * 3, s - 2 - w * 3);
       },
-      ghost(g, s, t) { g.fillStyle = this.colors[t]; g.globalAlpha = .2; g.fillRect(.5, .5, s - 1, s - 1); g.globalAlpha = .7; g.strokeStyle = this.colors[t]; g.lineWidth = 1.5; g.strokeRect(1.25, 1.25, s - 2.5, s - 2.5); },
+      ghost(g, s) { g.strokeStyle = '#151515'; g.globalAlpha = .5; g.lineWidth = 2; g.setLineDash([5, 4]); g.strokeRect(2, 2, s - 4, s - 4); },
+    },
+    chalk: {
+      // Chalk on slate: wobbly outlines and hatched fill, a little different in every cell.
+      label: 'Chalkboard', meta: '#1b2521', flash: '255,250,240', swatch: ['#25312d', '#f5df83', '#8ed1e6'], variants: 3,
+      colors: { I:'#8ed1e6', O:'#f5df83', T:'#d6a4e8', S:'#9fdf98', Z:'#f2918b', J:'#9db4f2', L:'#f5b87c' },
+      paintBg(g, W, H, cs) {
+        g.fillStyle = '#25312d'; g.fillRect(0, 0, W, H);
+        const r = rng(42);
+        for (let i = 0; i < 16; i++) {                                    // old wiped-chalk smudges
+          g.fillStyle = `rgba(255,255,255,${.015 + r() * .02})`;
+          g.beginPath(); g.ellipse(r() * W, r() * H, W * (.1 + r() * .25), cs * (.6 + r() * 1.6), r() * 3, 0, 6.3); g.fill();
+        }
+        g.strokeStyle = 'rgba(236,228,210,.07)'; g.lineWidth = 1; g.beginPath();
+        for (let x = 1; x < COLS; x++) { g.moveTo(x * cs + .5, 0); g.lineTo(x * cs + .5, H); }
+        for (let y = 1; y < ROWS; y++) { g.moveTo(0, y * cs + .5); g.lineTo(W, y * cs + .5); }
+        g.stroke();
+      },
+      block(g, x, y, s, t, v) {
+        const c = this.colors[t];
+        chalkPath(g, x, y, s, t, v);
+        g.save(); g.fillStyle = c; g.globalAlpha = .14; g.fill(); g.globalAlpha = .6; g.clip();
+        g.strokeStyle = c; g.lineWidth = Math.max(1, s * .045); g.beginPath();
+        for (let k = -s + v * s * .07; k < s * 2; k += s * .2) { g.moveTo(x + k, y + s); g.lineTo(x + k + s, y); }
+        g.stroke(); g.restore();
+        chalkPath(g, x, y, s, t, v);
+        g.strokeStyle = c; g.lineWidth = Math.max(1.6, s * .07); g.lineJoin = 'round'; g.globalAlpha = .95; g.stroke();
+      },
+      ghost(g, s, t, v) { chalkPath(g, 0, 0, s, t, v); g.strokeStyle = this.colors[t]; g.globalAlpha = .55; g.lineWidth = 1.6; g.setLineDash([2, 4]); g.stroke(); },
+    },
+    glass: {
+      // Stained glass: jewel panes in lead came, lit from the upper left.
+      label: 'Stained Glass', meta: '#120f0d', flash: '255,243,218', swatch: ['#c2282f', '#e8a31c', '#2a5cba'],
+      colors: { I:'#1fa0a8', O:'#e8a31c', T:'#8a3fb0', S:'#2f8f4e', Z:'#c2282f', J:'#2a5cba', L:'#e0742a' },
+      paintBg(g, W, H, cs) {
+        g.fillStyle = '#0d0b0a'; g.fillRect(0, 0, W, H);
+        g.strokeStyle = '#1d1814'; g.lineWidth = Math.max(1, cs * .06); g.beginPath();
+        for (let x = 1; x < COLS; x++) { g.moveTo(x * cs, 0); g.lineTo(x * cs, H); }
+        for (let y = 1; y < ROWS; y++) { g.moveTo(0, y * cs); g.lineTo(W, y * cs); }
+        g.stroke();
+      },
+      block(g, x, y, s, t) {
+        const w = Math.max(3, s * .13), X = x + w, Y = y + w, S = s - w * 2;
+        g.fillStyle = '#100c0a'; g.fillRect(x, y, s, s);                                   // lead came
+        g.fillStyle = this.colors[t]; g.fillRect(X, Y, S, S);
+        mkPoly(g, [[X, Y], [X + S * .62, Y], [X, Y + S * .62]], 'rgba(255,255,255,.3)');      // light catching one corner
+        mkPoly(g, [[X + S, Y + S * .4], [X + S, Y + S], [X + S * .4, Y + S]], 'rgba(0,0,0,.22)');
+        g.strokeStyle = 'rgba(16,12,10,.45)'; g.lineWidth = 1; g.beginPath();                // a fine seam, like a glass break
+        g.moveTo(X + S * .62, Y); g.lineTo(X + S, Y + S * .4); g.stroke();
+      },
+      ghost(g, s, t) {
+        const w = Math.max(2, s * .1);
+        g.fillStyle = this.colors[t]; g.globalAlpha = .22; g.fillRect(w, w, s - w * 2, s - w * 2);
+        g.globalAlpha = .7; g.strokeStyle = this.colors[t]; g.lineWidth = 1.5; g.strokeRect(w + .75, w + .75, s - w * 2 - 1.5, s - w * 2 - 1.5);
+      },
     },
   };
-  let themeName = store.get('theme', 'nes');
-  if (!THEMES[themeName]) themeName = 'nes';
+  let themeName = store.get('theme', 'bricks');
+  if (!THEMES[themeName]) themeName = 'bricks';
   let THEME = THEMES[themeName];
   const KEYS = Object.keys(SHAPES);
 
@@ -607,7 +690,9 @@
   let dpr = 1, bg = null, sprites = {}, ghosts = {}, minis = {}, miniKey = '';
   let rafId = 0, dirty = false;
 
-  function block(c, x, y, size, type) { THEME.block(c, x, y, size, type); }
+  function block(c, x, y, size, type) { THEME.block(c, x, y, size, type, 0); }
+  const variants = () => THEME.variants || 1;
+  const spr = (set, t, cx, cy) => { const a = set[t]; return a[((cx * 3 + cy * 5) % a.length + a.length) % a.length]; };
   function sprite(size, scale, paint) {
     const c = document.createElement('canvas');
     c.width = c.height = Math.ceil(size * scale);
@@ -617,8 +702,8 @@
   function buildSprites() {
     sprites = {}; ghosts = {}; minis = {};
     for (const t of KEYS) {
-      sprites[t] = sprite(cs, dpr, g => block(g, 0, 0, cs, t));
-      ghosts[t] = sprite(cs, dpr, g => THEME.ghost(g, cs, t));
+      sprites[t] = Array.from({ length: variants() }, (_, v) => sprite(cs, dpr, g => THEME.block(g, 0, 0, cs, t, v)));
+      ghosts[t] = Array.from({ length: variants() }, (_, v) => sprite(cs, dpr, g => THEME.ghost(g, cs, t, v)));
       minis[t] = sprite(13, 2, g => block(g, 0, 0, 13, t));
     }
     const W = COLS * cs, H = ROWS * cs;
@@ -643,7 +728,7 @@
     ctx.drawImage(bg, 0, 0, W, H);
 
     for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
-      if (grid[y][x]) ctx.drawImage(sprites[grid[y][x]], x * cs, y * cs, cs, cs);
+      if (grid[y][x]) ctx.drawImage(spr(sprites, grid[y][x], x, y), x * cs, y * cs, cs, cs);
 
     if (clearing) {
       const a = .35 + .5 * Math.abs(Math.sin(clearing.t / 40));
@@ -654,10 +739,10 @@
         let gy = cur.y;
         while (!collides(cur.m, cur.x, gy + 1)) gy++;
         if (gy !== cur.y) cur.m.forEach((r, y) => r.forEach((v, x) => {
-          if (v && gy + y >= 0) ctx.drawImage(ghosts[cur.type], (cur.x + x) * cs, (gy + y) * cs, cs, cs);
+          if (v && gy + y >= 0) ctx.drawImage(spr(ghosts, cur.type, cur.x + x, gy + y), (cur.x + x) * cs, (gy + y) * cs, cs, cs);
         }));
       }
-      cur.m.forEach((r, y) => r.forEach((v, x) => { if (v && cur.y + y >= 0) ctx.drawImage(sprites[cur.type], (cur.x + x) * cs, (cur.y + y) * cs, cs, cs); }));
+      cur.m.forEach((r, y) => r.forEach((v, x) => { if (v && cur.y + y >= 0) ctx.drawImage(spr(sprites, cur.type, cur.x + x, cur.y + y), (cur.x + x) * cs, (cur.y + y) * cs, cs, cs); }));
     }
     const k = nextType + '|' + holdType + '|' + canHold;
     if (k !== miniKey) { miniKey = k; drawMini(nextC, nextType, false); drawMini(holdC, holdType, !canHold); }
