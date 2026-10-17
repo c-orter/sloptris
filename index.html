@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Sloptris</title>
 <meta name="description" content="Offline Tetris. Install it and play anywhere.">
-<meta name="theme-color" content="#efeae0">
+<meta name="theme-color" content="#1b1c1f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sloptris">
@@ -14,42 +14,39 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
-  /* Four themes, each built around an idea about Tetris itself:
+  /* Four dark themes, each built around an idea about Tetris:
      Bricks (stacking toy bricks), Constructivist (Soviet-era poster), Chalkboard (the maths-puzzle
      origins, hand-drawn) and Stained Glass (the cathedral). All keep pieces colour-coded. */
   :root {
     --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
-    /* Bricks (default) */
-    --bg: #efeae0; --surface: #fbf8f1; --ink: #242220; --hi: #242220; --dim: #7a7468; --rule: #d8d1c3;
-    --accent: #d3281f; --accent-ink: #fff; --veil: rgba(239,234,224,.95);
-    --bd-tile: 2px solid #242220; --bd-hard: 3px solid #242220;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Bricks (default): black baseplate, warm off-white text */
+    --bg: #1b1c1f; --surface: #26272b; --ink: #f1efea; --hi: #fff; --dim: #9b988f; --rule: #3b3c41;
+    --accent: #e0392d; --accent-ink: #fff; --veil: rgba(20,21,23,.95);
+    --bd-tile: 2px solid #3b3c41; --bd-hard: 3px solid #3b3c41;
     --r: 10px; --r-board: 6px; --clip: none; --tt: none; --ls: .1em; --num-w: 800;
-    --font: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Hiragino Maru Gothic ProN", Nunito, system-ui, sans-serif;
   }
-  /* Constructivist: cream paper, black and red, heavy condensed capitals */
+  /* Constructivist: black paper, cream and red, heavy capitals */
   :root[data-theme="constructivist"] {
-    --bg: #e9dfc7; --surface: #f4ecd9; --ink: #151515; --hi: #151515; --dim: #6b6454; --rule: #151515;
-    --accent: #d4281b; --accent-ink: #f4ecd9; --veil: rgba(233,223,199,.96);
-    --bd-tile: 3px solid #151515; --bd-hard: 4px solid #151515;
-    --r: 0; --r-board: 0; --tt: uppercase; --ls: .04em; --num-w: 900;
-    --font: "Haettenschweiler", "Impact", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", sans-serif;
+    --bg: #141210; --surface: #1c1a17; --ink: #efe6d2; --hi: #efe6d2; --dim: #a89f8c; --rule: #efe6d2;
+    --accent: #e03a2a; --accent-ink: #f7efdc; --veil: rgba(16,14,12,.96);
+    --bd-tile: 3px solid #efe6d2; --bd-hard: 4px solid #efe6d2;
+    --r: 0; --r-board: 0; --tt: uppercase; --ls: .06em; --num-w: 900;
   }
   /* Chalkboard: slate green, chalk lines, wobbly hand-drawn borders */
   :root[data-theme="chalk"] {
     --bg: #1b2521; --surface: #25312d; --ink: #ece4d2; --hi: #fffaf0; --dim: #9aa79f; --rule: rgba(236,228,210,.35);
     --accent: #f5df83; --accent-ink: #25312d; --veil: rgba(27,37,33,.95);
     --bd-tile: 2px solid rgba(236,228,210,.85); --bd-hard: 2px solid rgba(236,228,210,.85);
-    --r: 18px 5px 16px 6px / 6px 16px 5px 18px; --r-board: 5px 3px 6px 3px; --tt: none; --ls: .02em; --num-w: 700;
-    --font: "Bradley Hand", "Chalkboard SE", "Marker Felt", "Segoe Print", "Comic Sans MS", cursive;
+    --r: 18px 5px 16px 6px / 6px 16px 5px 18px; --r-board: 5px 3px 6px 3px; --tt: none; --ls: .04em; --num-w: 700;
   }
-  /* Stained glass: lead lines, jewel colours, serif */
+  /* Stained glass: lead lines, jewel colours */
   :root[data-theme="glass"] {
     --bg: #120f0d; --surface: #1a1613; --ink: #e9dcc4; --hi: #fff3da; --dim: #a08f72; --rule: #3a3128;
     --accent: #c2282f; --accent-ink: #fff3da; --veil: rgba(14,11,10,.95);
     --bd-tile: 2px solid #3a3128; --bd-hard: 4px solid #2b241d;
-    --r: 2px; --r-board: 2px; --tt: uppercase; --ls: .16em; --num-w: 700;
-    --font: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --r: 2px; --r-board: 2px; --tt: uppercase; --ls: .12em; --num-w: 700;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); overscroll-behavior: none; }
@@ -139,16 +136,17 @@
   .toggles input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
   #installBtn { display: none; }
   /* Per-theme flourishes */
+  :root[data-theme="bricks"] .btn:not(.alt) { border-color: #9c1f16; }
   :root:not([data-theme]) .btn, :root[data-theme="bricks"] .btn { border-bottom-width: 5px; }
   :root:not([data-theme]) #pad button, :root[data-theme="bricks"] #pad button { border-bottom-width: 5px; }
   :root[data-theme="constructivist"] .card h1 {
     align-self: flex-start; background: var(--accent); color: var(--accent-ink); padding: 8px 14px 6px;
     transform: rotate(-3deg); font-size: 34px;
   }
-  :root[data-theme="constructivist"] .sect { border-top: 3px solid #151515; }
+  :root[data-theme="constructivist"] .sect { border-top: 3px solid #efe6d2; }
   :root[data-theme="chalk"] .sect { border-top: 2px dashed var(--rule); }
   :root[data-theme="chalk"] .seg button + button { border-left: 2px dashed var(--rule); }
-  :root[data-theme="glass"] .card h1 { letter-spacing: .3em; }
+  :root[data-theme="glass"] .card h1 { letter-spacing: .24em; }
 
   @media (min-width: 560px) and (min-height: 700px) {
     #app { max-width: 520px; margin: 0 auto; width: 100%; }
@@ -238,15 +236,15 @@
   const THEMES = {
     bricks: {
       // Plastic toy bricks on a baseplate: studs on top, a darker lip underneath.
-      label: 'Bricks', meta: '#efeae0', flash: '255,255,255', swatch: ['#d3281f', '#f7c928', '#2a6bc9'],
+      label: 'Bricks', meta: '#1b1c1f', flash: '255,255,255', swatch: ['#d3281f', '#f7c928', '#2a6bc9'],
       colors: { I:'#2fb3e8', O:'#f7c928', T:'#8a4fbf', S:'#2f9e55', Z:'#d3281f', J:'#2a6bc9', L:'#f58a1f' },
       paintBg(g, W, H, cs) {
-        g.fillStyle = '#a7a6a3'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#2a2b2f'; g.fillRect(0, 0, W, H);
         for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
           const cx = x * cs + cs / 2, cy = y * cs + cs / 2, r = cs * .27;
-          g.fillStyle = '#8c8b88'; disc(g, cx, cy + cs * .06, r);
-          g.fillStyle = '#b8b7b4'; disc(g, cx, cy, r);
-          g.fillStyle = 'rgba(255,255,255,.35)'; disc(g, cx - r * .3, cy - r * .3, r * .32);
+          g.fillStyle = '#18191b'; disc(g, cx, cy + cs * .06, r);
+          g.fillStyle = '#383a40'; disc(g, cx, cy, r);
+          g.fillStyle = 'rgba(255,255,255,.1)'; disc(g, cx - r * .3, cy - r * .3, r * .32);
         }
       },
       block(g, x, y, s, t) {
@@ -259,15 +257,15 @@
         g.fillStyle = shade(c, .1); disc(g, cx, cy, sr);
         g.fillStyle = 'rgba(255,255,255,.45)'; disc(g, cx - sr * .32, cy - sr * .32, sr * .3);
       },
-      ghost(g, s, t) { g.strokeStyle = shade(this.colors[t], -.2); g.globalAlpha = .75; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.roundRect(2, 2, s - 4, s - 4, s * .13); g.stroke(); },
+      ghost(g, s, t) { g.strokeStyle = this.colors[t]; g.globalAlpha = .7; g.lineWidth = 2; g.setLineDash([4, 3]); g.beginPath(); g.roundRect(2, 2, s - 4, s - 4, s * .13); g.stroke(); },
     },
     constructivist: {
       // Soviet poster: flat primaries, black outlines, cream paper.
-      label: 'Constructivist', meta: '#e9dfc7', flash: '21,21,21', swatch: ['#d4281b', '#f2b705', '#151515'],
-      colors: { I:'#2a6db5', O:'#f2b705', T:'#161616', S:'#3a8f6a', Z:'#d4281b', J:'#9a9388', L:'#e8742a' },
+      label: 'Constructivist', meta: '#141210', flash: '239,230,210', swatch: ['#e03a2a', '#f2b705', '#efe6d2'],
+      colors: { I:'#3b82d6', O:'#f2b705', T:'#efe6d2', S:'#3fa37a', Z:'#e03a2a', J:'#8f887c', L:'#ee8a3a' },
       paintBg(g, W, H, cs) {
-        g.fillStyle = '#f4ecd9'; g.fillRect(0, 0, W, H);
-        g.strokeStyle = 'rgba(21,21,21,.1)'; g.lineWidth = 1; g.beginPath();
+        g.fillStyle = '#0f0e0c'; g.fillRect(0, 0, W, H);
+        g.strokeStyle = 'rgba(239,230,210,.09)'; g.lineWidth = 1; g.beginPath();
         for (let x = 1; x < COLS; x++) { g.moveTo(x * cs + .5, 0); g.lineTo(x * cs + .5, H); }
         for (let y = 1; y < ROWS; y++) { g.moveTo(0, y * cs + .5); g.lineTo(W, y * cs + .5); }
         g.stroke();
@@ -275,11 +273,11 @@
       block(g, x, y, s, t) {
         const w = Math.max(2, s * .09);
         g.fillStyle = this.colors[t]; g.fillRect(x + 1, y + 1, s - 2, s - 2);
-        g.strokeStyle = '#151515'; g.lineWidth = w; g.strokeRect(x + 1 + w / 2, y + 1 + w / 2, s - 2 - w, s - 2 - w);
-        g.strokeStyle = 'rgba(244,236,217,.4)'; g.lineWidth = 1;                       // keeps black pieces readable
+        g.strokeStyle = '#efe6d2'; g.lineWidth = w; g.strokeRect(x + 1 + w / 2, y + 1 + w / 2, s - 2 - w, s - 2 - w);
+        g.strokeStyle = 'rgba(15,14,12,.45)'; g.lineWidth = 1;                         // keeps the cream piece readable
         g.strokeRect(x + 1 + w * 1.5, y + 1 + w * 1.5, s - 2 - w * 3, s - 2 - w * 3);
       },
-      ghost(g, s) { g.strokeStyle = '#151515'; g.globalAlpha = .5; g.lineWidth = 2; g.setLineDash([5, 4]); g.strokeRect(2, 2, s - 4, s - 4); },
+      ghost(g, s) { g.strokeStyle = '#efe6d2'; g.globalAlpha = .5; g.lineWidth = 2; g.setLineDash([5, 4]); g.strokeRect(2, 2, s - 4, s - 4); },
     },
     chalk: {
       // Chalk on slate: wobbly outlines and hatched fill, a little different in every cell.
