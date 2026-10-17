@@ -404,7 +404,7 @@
       </div>`;
     const how = mode === 'gestures' ? `
       <div class="how"><b>Drag</b> sideways to move<br><b>Drag down</b> to soft drop · <b>flick down</b> to hard drop<br>
-      <b>Tap</b> right/left side to rotate ⟳/⟲<br><b>Swipe up</b> or tap HOLD to hold</div>` : `
+      <b>Tap</b> right/left side to rotate ⟳/⟲ · <b>hold</b> to fall faster<br><b>Swipe up</b> or tap HOLD to hold</div>` : `
       <div class="how"><b>◀ ▶</b> move (hold to repeat) · <b>⟳</b> rotate<br><b>⇄</b> hold · <b>⤓</b> hard drop<br>
       Tap the board to rotate too</div>`;
     if (state === 'menu') {
@@ -443,7 +443,7 @@
   let hintTimer;
   function showHint() {
     const h = $('hint');
-    h.textContent = mode === 'gestures' ? 'Drag to move · tap to rotate · flick down to drop' : '';
+    h.textContent = mode === 'gestures' ? 'Drag to move · tap to rotate · hold to speed up' : '';
     if (!h.textContent) return;
     h.classList.add('show'); clearTimeout(hintTimer);
     hintTimer = setTimeout(() => h.classList.remove('show'), 3500);
@@ -457,7 +457,14 @@
     if (mode === 'buttons') { rotate(1); return; }
     stage.setPointerCapture(e.pointerId);
     g = { id: e.pointerId, x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: performance.now(),
-          moved: false, ly: e.clientY, lx: e.clientX, lt: performance.now(), samples: [[performance.now(), e.clientY]], softed: false };
+          moved: false, ly: e.clientY, lx: e.clientX, lt: performance.now(), samples: [[performance.now(), e.clientY]], softed: false,
+          holdT: null, fastI: null };
+    // press and hold (without dragging) = fast fall until release
+    g.holdT = setTimeout(() => {
+      if (!g || g.moved) return;
+      g.fastI = setInterval(() => { if (state === 'play') softDrop(); }, 35);
+      buzz(8);
+    }, 220);
   });
   stage.addEventListener('pointermove', e => {
     if (!g || e.pointerId !== g.id || state !== 'play') return;
@@ -465,7 +472,7 @@
     g.samples.push([now, e.clientY]); g.ly = e.clientY; g.lx = e.clientX; g.lt = now;
     while (g.samples.length > 2 && now - g.samples[0][0] > 90) g.samples.shift();
     const dx = e.clientX - g.ax, dy = e.clientY - g.ay;
-    if (Math.abs(e.clientX - g.x0) > 8 || Math.abs(e.clientY - g.y0) > 8) g.moved = true;
+    if (Math.abs(e.clientX - g.x0) > 8 || Math.abs(e.clientY - g.y0) > 8) { g.moved = true; clearTimeout(g.holdT); }
     const stepX = cs * 0.85;
     while (Math.abs(e.clientX - g.ax) >= stepX) {
       const dir = Math.sign(e.clientX - g.ax);
@@ -481,7 +488,8 @@
   function endGesture(e, cancel) {
     if (!g || e.pointerId !== g.id) return;
     const gest = g; g = null;
-    if (cancel || state !== 'play') return;
+    clearTimeout(gest.holdT); clearInterval(gest.fastI);
+    if (cancel || state !== 'play' || gest.fastI) return;
     const now = performance.now();
     const [ts, ys] = gest.samples[0];   // last positions come from the final pointermove
     const ly = gest.ly, lx = gest.lx, lt = gest.lt;
