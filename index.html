@@ -64,6 +64,8 @@
   .tile small, .label { font-size: 10px; letter-spacing: var(--ls); color: var(--dim); font-weight: 700; text-transform: uppercase; }
   .mini { width: 72px; height: 62px; padding: 6px 0 2px; align-items: center; cursor: pointer; }
   .mini canvas { width: 64px; height: 40px; display: block; }
+  :root[data-theme="handheld"] .mini { background: #0c260c; }
+  :root[data-theme="handheld"] .mini small { color: #9bbc0f; }
   #stats { flex: 1; padding: 6px 12px; display: grid; grid-template-columns: 1fr 1fr; align-content: center; gap: 2px 12px; }
   #stats .score { grid-column: 1 / 3; display: flex; flex-direction: column; }
   #stats b { font-weight: var(--num-w); font-variant-numeric: tabular-nums; }
@@ -196,8 +198,7 @@
     J: [[1,0,0],[1,1,1],[0,0,0]],
     L: [[0,0,1],[1,1,1],[0,0,0]],
   };
-  // Canvas side of the themes. Each theme draws its own blocks; Handheld tells pieces apart
-  // by tone and a small mark (it only has four greens), the other two by flat colour.
+  // Canvas side of the themes. Each theme draws its own blocks; all keep pieces colour-coded.
   const strokeBox = (g, x, y, s, w) => g.strokeRect(x + 1 + w / 2, y + 1 + w / 2, s - 2 - w, s - 2 - w);
   const THEMES = {
     graphite: {
@@ -231,23 +232,18 @@
       },
     },
     handheld: {
-      label: 'Handheld', meta: '#8bac0f', bg: '#9bbc0f', grid: 'rgba(15,56,15,.07)', flash: '15,56,15',
-      swatch: ['#9bbc0f', '#306230', '#0f380f'],
-      colors: {},
-      // Every block is a solid dark tile of equal weight (so the stack reads as clean
-      // silhouettes); pieces differ by tone (dark/mid) and one small light mark.
+      label: 'Handheld', meta: '#8bac0f', bg: '#0c260c', grid: 'rgba(155,188,15,.11)', flash: '155,188,15',
+      swatch: ['#9bbc0f', '#e65a4a', '#4fc3d9'],
+      // LCD-green chrome around a dark green "screen"; pieces stay colour-coded.
+      colors: { I:'#4fc3d9', O:'#f2d04b', T:'#b87fd6', S:'#9ad54b', Z:'#e65a4a', J:'#5d82e6', L:'#f09a3e' },
       block(g, x, y, s, t) {
-        const D = '#0f380f', M = '#306230', L = '#9bbc0f', b = x + 1, c = y + 1, n = s - 2, m = Math.round(n * .3);
-        const mid = 'OSJ'.includes(t);
-        g.fillStyle = mid ? M : D; g.fillRect(b, c, n, n);
-        g.fillStyle = L;
-        if (t === 'T' || t === 'S') g.fillRect(b + (n - m) / 2, c + (n - m) / 2, m, m);                        // square
-        else if (t === 'Z' || t === 'J') { g.beginPath(); g.arc(b + n / 2, c + n / 2, m * .62, 0, 6.3); g.fill(); } // dot
-        else if (t === 'L') g.fillRect(b + n * .2, c + (n - m * .5) / 2, n * .6, m * .5);                      // bar
-        // I and O stay plain
+        const b = x + 1, c = y + 1, n = s - 2, e = Math.max(2, Math.round(s * .1));
+        g.fillStyle = this.colors[t]; g.fillRect(b, c, n, n);
+        g.fillStyle = 'rgba(255,255,255,.38)'; g.fillRect(b, c, n, e); g.fillRect(b, c, e, n);     // chunky pixel bevel
+        g.fillStyle = 'rgba(0,0,0,.34)'; g.fillRect(b, c + n - e, n, e); g.fillRect(b + n - e, c, e, n);
       },
-      ghost(g, s) {
-        g.strokeStyle = '#0f380f'; g.globalAlpha = .55; g.lineWidth = 2;
+      ghost(g, s, t) {
+        g.strokeStyle = this.colors[t]; g.globalAlpha = .6; g.lineWidth = 2;
         g.strokeRect(2, 2, s - 4, s - 4);
       },
     },
