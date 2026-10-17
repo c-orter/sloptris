@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Sloptris</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #12141c; color: #e6e8f0;
+    font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center;
+    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  }
+  #wrap { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
+  canvas { background: #0b0d13; border: 2px solid #2a2f45; border-radius: 6px; display: block; }
+  #side { width: 140px; display: flex; flex-direction: column; gap: 12px; }
+  .box { background: #1a1d2b; border: 1px solid #2a2f45; border-radius: 6px; padding: 8px; text-align: center; }
+  .box h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: .1em; color: #8a90ab; font-weight: 600; }
+  .box .v { font-size: 22px; font-variant-numeric: tabular-nums; }
+  #next, #hold { width: 100%; height: auto; border: 0; background: transparent; }
+  #help { font-size: 11px; color: #8a90ab; line-height: 1.6; text-align: left; }
+  kbd { background: #2a2f45; border-radius: 3px; padding: 0 4px; color: #cfd3e6; }
+  #touch { display: none; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+  #touch button { padding: 14px 0; font-size: 18px; background: #2a2f45; color: #e6e8f0; border: 0; border-radius: 6px; }
+  @media (pointer: coarse) { #touch { display: grid; } #help { display: none; } }
+  @media (max-width: 520px) { #wrap { flex-direction: column; align-items: center; } #side { width: 100%; flex-direction: row; flex-wrap: wrap; } #side .box { flex: 1 1 28%; } #help { display: none; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div>
+    <canvas id="board" width="300" height="600"></canvas>
+    <div id="touch">
+      <button data-a="left">◀</button><button data-a="rotate">⟳</button><button data-a="right">▶</button><button data-a="drop">⤓</button>
+    </div>
+  </div>
+  <div id="side">
+    <div class="box"><h3>NEXT</h3><canvas id="next" width="120" height="80"></canvas></div>
+    <div class="box"><h3>HOLD</h3><canvas id="hold" width="120" height="80"></canvas></div>
+    <div class="box"><h3>SCORE</h3><div class="v" id="score">0</div></div>
+    <div class="box"><h3>LINES</h3><div class="v" id="lines">0</div></div>
+    <div class="box"><h3>LEVEL</h3><div class="v" id="level">1</div></div>
+    <div class="box"><h3>BEST</h3><div class="v" id="best">0</div></div>
+    <div id="help">
+      <kbd>←</kbd><kbd>→</kbd> move<br>
+      <kbd>↑</kbd>/<kbd>X</kbd> rotate<br>
+      <kbd>Z</kbd> rotate back<br>
+      <kbd>↓</kbd> soft drop<br>
+      <kbd>Space</kbd> hard drop<br>
+      <kbd>C</kbd> hold<br>
+      <kbd>P</kbd> pause · <kbd>R</kbd> restart
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const COLS = 10, ROWS = 20, S = 30;
+  const board = document.getElementById('board'), ctx = board.getContext('2d');
+  const nextC = document.getElementById('next').getContext('2d');
+  const holdC = document.getElementById('hold').getContext('2d');
+
+  const SHAPES = {
+    I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    O: [[1,1],[1,1]],
+    T: [[0,1,0],[1,1,1],[0,0,0]],
+    S: [[0,1,1],[1,1,0],[0,0,0]],
+    Z: [[1,1,0],[0,1,1],[0,0,0]],
+    J: [[1,0,0],[1,1,1],[0,0,0]],
+    L: [[0,0,1],[1,1,1],[0,0,0]],
+  };
+  const COLORS = { I:'#38d6e8', O:'#f2d03b', T:'#b05cf0', S:'#4cd964', Z:'#f2543d', J:'#4a78f0', L:'#f29a3b' };
+  const KEYS = Object.keys(SHAPES);
+
+  let grid, cur, nextType, holdType, canHold, bag;
+  let score, lines, level, best, over, paused, dropTimer, lockTimer, lastT, clearing;
+
+  try { best = +localStorage.getItem('sloptris-best') || 0; } catch { best = 0; }
+
+  function rotateM(m, dir) {
+    const n = m.length, r = m.map(() => Array(n).fill(0));
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++)
+      if (dir > 0) r[x][n-1-y] = m[y][x]; else r[n-1-x][y] = m[y][x];
+    return r;
+  }
+  function nextFromBag() {
+    if (!bag.length) {
+      bag = KEYS.slice();
+      for (let i = bag.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [bag[i], bag[j]] = [bag[j], bag[i]]; }
+    }
+    return bag.pop();
+  }
+  function spawn(type) {
+    const m = SHAPES[type].map(r => r.slice());
+    cur = { type, m, x: Math.floor((COLS - m.length) / 2), y: type === 'I' ? -1 : 0 };
+    canHold = true; lockTimer = 0;
+    if (collides(cur.m, cur.x, cur.y)) endGame();
+  }
+  function collides(m, px, py) {
+    for (let y = 0; y < m.length; y++) for (let x = 0; x < m[y].length; x++) {
+      if (!m[y][x]) continue;
+      const gx = px + x, gy = py + y;
+      if (gx < 0 || gx >= COLS || gy >= ROWS) return true;
+      if (gy >= 0 && grid[gy][gx]) return true;
+    }
+    return false;
+  }
+  function reset() {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    bag = []; score = 0; lines = 0; level = 1; over = false; paused = false;
+    holdType = null; dropTimer = 0; lockTimer = 0; clearing = null;
+    nextType = nextFromBag();
+    spawn(nextFromBag_swap());
+    updateHUD();
+  }
+  function nextFromBag_swap() { const t = nextType; nextType = nextFromBag(); return t; }
+
+  function move(dx) {
+    if (!collides(cur.m, cur.x + dx, cur.y)) { cur.x += dx; lockTimer = 0; return true; }
+    return false;
+  }
+  function rotate(dir) {
+    if (cur.type === 'O') return;
+    const r = rotateM(cur.m, dir);
+    const kicks = [0, -1, 1, -2, 2];
+    for (const k of kicks) {
+      if (!collides(r, cur.x + k, cur.y)) { cur.m = r; cur.x += k; lockTimer = 0; return; }
+      if (!collides(r, cur.x + k, cur.y - 1)) { cur.m = r; cur.x += k; cur.y -= 1; lockTimer = 0; return; }
+    }
+  }
+  function softDrop() {
+    if (!collides(cur.m, cur.x, cur.y + 1)) { cur.y++; score += 1; updateHUD(); return true; }
+    return false;
+  }
+  function hardDrop() {
+    let d = 0;
+    while (!collides(cur.m, cur.x, cur.y + 1)) { cur.y++; d++; }
+    score += d * 2; lock();
+  }
+  function hold() {
+    if (!canHold) return;
+    const t = cur.type;
+    if (holdType) { const h = holdType; holdType = t; spawn(h); }
+    else { holdType = t; spawn(nextFromBag_swap()); }
+    canHold = false;
+  }
+  function lock() {
+    for (let y = 0; y < cur.m.length; y++) for (let x = 0; x < cur.m[y].length; x++) {
+      if (!cur.m[y][x]) continue;
+      const gy = cur.y + y;
+      if (gy < 0) { endGame(); return; }
+      grid[gy][cur.x + x] = cur.type;
+    }
+    const full = [];
+    for (let y = 0; y < ROWS; y++) if (grid[y].every(Boolean)) full.push(y);
+    if (full.length) {
+      clearing = { rows: full, t: 0 };
+    } else {
+      spawn(nextFromBag_swap());
+    }
+    updateHUD();
+  }
+  function finishClear() {
+    const n = clearing.rows.length;
+    grid = grid.filter((_, i) => !clearing.rows.includes(i));
+    while (grid.length < ROWS) grid.unshift(Array(COLS).fill(null));
+    score += [0, 100, 300, 500, 800][n] * level;
+    lines += n;
+    level = 1 + Math.floor(lines / 10);
+    clearing = null;
+    spawn(nextFromBag_swap());
+    updateHUD();
+  }
+  function endGame() {
+    over = true;
+    if (score > best) { best = score; try { localStorage.setItem('sloptris-best', best); } catch {} }
+    updateHUD();
+  }
+  function updateHUD() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('lines').textContent = lines;
+    document.getElementById('level').textContent = level;
+    document.getElementById('best').textContent = Math.max(best, score);
+  }
+  const dropInterval = () => Math.max(60, 800 * Math.pow(0.85, level - 1));
+
+  function cell(c, x, y, type, size, alpha = 1) {
+    c.globalAlpha = alpha;
+    c.fillStyle = COLORS[type];
+    c.fillRect(x, y, size, size);
+    c.fillStyle = 'rgba(255,255,255,.25)';
+    c.fillRect(x, y, size, 3);
+    c.fillRect(x, y, 3, size);
+    c.fillStyle = 'rgba(0,0,0,.3)';
+    c.fillRect(x, y + size - 3, size, 3);
+    c.fillRect(x + size - 3, y, 3, size);
+    c.globalAlpha = 1;
+  }
+  function drawMini(c, type) {
+    c.clearRect(0, 0, 120, 80);
+    if (!type) return;
+    const m = SHAPES[type], s = 20;
+    let minX = 9, maxX = 0, minY = 9, maxY = 0;
+    m.forEach((r, y) => r.forEach((v, x) => { if (v) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); } }));
+    const ox = (120 - (maxX - minX + 1) * s) / 2, oy = (80 - (maxY - minY + 1) * s) / 2;
+    m.forEach((r, y) => r.forEach((v, x) => { if (v) cell(c, ox + (x - minX) * s, oy + (y - minY) * s, type, s); }));
+  }
+  function draw() {
+    ctx.clearRect(0, 0, board.width, board.height);
+    ctx.strokeStyle = 'rgba(255,255,255,.04)';
+    ctx.beginPath();
+    for (let x = 1; x < COLS; x++) { ctx.moveTo(x * S, 0); ctx.lineTo(x * S, ROWS * S); }
+    for (let y = 1; y < ROWS; y++) { ctx.moveTo(0, y * S); ctx.lineTo(COLS * S, y * S); }
+    ctx.stroke();
+
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++)
+      if (grid[y][x]) cell(ctx, x * S, y * S, grid[y][x], S);
+
+    if (clearing) {
+      const a = 0.5 + 0.5 * Math.sin(clearing.t / 25);
+      ctx.fillStyle = `rgba(255,255,255,${0.3 + 0.5 * a})`;
+      clearing.rows.forEach(y => ctx.fillRect(0, y * S, COLS * S, S));
+    } else if (!over) {
+      let gy = cur.y;
+      while (!collides(cur.m, cur.x, gy + 1)) gy++;
+      cur.m.forEach((r, y) => r.forEach((v, x) => { if (v && gy + y >= 0) cell(ctx, (cur.x + x) * S, (gy + y) * S, cur.type, S, 0.2); }));
+      cur.m.forEach((r, y) => r.forEach((v, x) => { if (v && cur.y + y >= 0) cell(ctx, (cur.x + x) * S, (cur.y + y) * S, cur.type, S); }));
+    }
+
+    if (over || paused) {
+      ctx.fillStyle = 'rgba(0,0,0,.65)';
+      ctx.fillRect(0, 0, board.width, board.height);
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+      ctx.font = 'bold 32px system-ui';
+      ctx.fillText(over ? 'GAME OVER' : 'PAUSED', 150, 280);
+      ctx.font = '16px system-ui';
+      ctx.fillText(over ? 'Press R or tap to restart' : 'Press P to resume', 150, 315);
+    }
+    drawMini(nextC, nextType);
+    drawMini(holdC, holdType);
+  }
+
+  function frame(t) {
+    const dt = Math.min(100, t - (lastT || t)); lastT = t;
+    if (!over && !paused) {
+      if (clearing) {
+        clearing.t += dt;
+        if (clearing.t > 250) finishClear();
+      } else {
+        dropTimer += dt;
+        if (collides(cur.m, cur.x, cur.y + 1)) {
+          lockTimer += dt;
+          if (lockTimer > 500) lock();
+        } else {
+          lockTimer = 0;
+          if (dropTimer >= dropInterval()) { dropTimer = 0; cur.y++; }
+        }
+      }
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // Input with auto-repeat for left/right/down
+  const held = {};
+  const REPEAT = { ArrowLeft: [150, 50], ArrowRight: [150, 50], ArrowDown: [0, 40] };
+  function act(key) {
+    if (key === 'ArrowLeft') move(-1);
+    else if (key === 'ArrowRight') move(1);
+    else if (key === 'ArrowDown') { if (softDrop()) dropTimer = 0; }
+  }
+  function canPlay() { return !over && !paused && !clearing; }
+  addEventListener('keydown', e => {
+    const k = e.key;
+    if (['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(k)) e.preventDefault();
+    if (k === 'r' || k === 'R') { reset(); return; }
+    if (k === 'p' || k === 'P') { if (!over) paused = !paused; return; }
+    if (e.repeat || !canPlay()) return;
+    if (REPEAT[k]) {
+      act(k);
+      const [delay, rate] = REPEAT[k];
+      clearTimeout(held[k]?.d); clearInterval(held[k]?.i);
+      held[k] = { d: setTimeout(() => { held[k].i = setInterval(() => canPlay() && act(k), rate); }, delay) };
+    }
+    else if (k === 'ArrowUp' || k === 'x' || k === 'X') rotate(1);
+    else if (k === 'z' || k === 'Z') rotate(-1);
+    else if (k === ' ') hardDrop();
+    else if (k === 'c' || k === 'C' || k === 'Shift') hold();
+  });
+  addEventListener('keyup', e => {
+    const h = held[e.key];
+    if (h) { clearTimeout(h.d); clearInterval(h.i); delete held[e.key]; }
+  });
+  addEventListener('blur', () => { Object.values(held).forEach(h => { clearTimeout(h.d); clearInterval(h.i); }); for (const k in held) delete held[k]; if (!over) paused = true; });
+
+  // Touch controls
+  document.querySelectorAll('#touch button').forEach(b => {
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (over) { reset(); return; }
+      if (paused) { paused = false; return; }
+      if (!canPlay()) return;
+      const a = b.dataset.a;
+      if (a === 'left') move(-1); else if (a === 'right') move(1);
+      else if (a === 'rotate') rotate(1); else if (a === 'drop') hardDrop();
+    });
+  });
+  board.addEventListener('pointerdown', () => { if (over) reset(); else if (paused) paused = false; });
+
+  reset();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
