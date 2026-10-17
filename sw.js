@@ -1,6 +1,6 @@
-const CACHE = 'sloptris-v13';
+const CACHE = 'sloptris-v14';
 const ASSETS = [
-  './', './index.html', './manifest.webmanifest',
+  './', './index.html', './styles.css', './game.js', './audio.js', './manifest.webmanifest',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
   './icons/icon-maskable-512.png', './icons/apple-touch-icon.png',
 ];
