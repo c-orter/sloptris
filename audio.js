@@ -15,7 +15,7 @@ function createAudio({ store, getLevel, isPlaying }) {
   const CHORDS = { E: [64, 68, 71], Am: [69, 72, 76], Dm: [62, 65, 69], C: [60, 64, 67],
                    F: [65, 69, 72], G: [67, 71, 74], D: [62, 66, 69] };
   const TRACKS = [
-    { bpm: 150, bar: 4, wave: 'square', drums: true, bass: 'pulse',   // Korobeiniki
+    { bar: 4, wave: 'square', drums: true, bass: 'pulse',   // Korobeiniki
       melody: [
         [76,1],[71,.5],[72,.5],[74,1],[72,.5],[71,.5],
         [69,1],[69,.5],[72,.5],[76,1],[74,.5],[72,.5],
@@ -26,7 +26,7 @@ function createAudio({ store, getLevel, isPlaying }) {
         [71,1],[71,.5],[72,.5],[74,1],[76,1],
         [72,1],[69,1],[69,2]],
       roots: [40, 45, 40, 45, 50, 48, 40, 45], chords: ['E','Am','E','Am','Dm','C','E','Am'] },
-    { bpm: 128, bar: 3, wave: 'pulse25', drums: false, bass: 'waltz',  // Minuet in G
+    { bar: 3, wave: 'pulse25', drums: false, bass: 'waltz',  // Minuet in G
       melody: [
         [74,1],[67,.5],[69,.5],[71,.5],[72,.5],  [74,1],[67,1],[67,1],
         [76,1],[72,.5],[74,.5],[76,.5],[78,.5],  [79,1],[67,1],[67,1],
@@ -38,7 +38,7 @@ function createAudio({ store, getLevel, isPlaying }) {
         [72,1],[69,.5],[71,.5],[72,.5],[69,.5],  [71,1],[67,2]],
       roots: [43, 43, 48, 43, 48, 43, 50, 50, 43, 48, 43, 50, 50, 43, 48, 43],
       chords: ['G','G','C','G','C','G','D','D','G','C','G','D','D','G','C','G'] },
-    { bpm: 158, bar: 4, wave: 'pulse25', drums: true, bass: 'drive',   // Neon Run
+    { bar: 4, wave: 'pulse25', drums: true, bass: 'drive',   // Neon Run
       melody: [
         [69,.5],[72,.5],[76,.5],[72,.5],[81,1],[76,1],
         [77,.5],[81,.5],[84,.5],[81,.5],[77,1],[72,1],
@@ -96,11 +96,14 @@ function createAudio({ store, getLevel, isPlaying }) {
 
   // ---- scheduler: queue notes a little ahead of the audio clock ----
   let cur = null, ei = 0, loopStart = 0, spb = .4, pi = 0, passes = 0;
-  const beatLen = tr => 60 / (tr.bpm * (1 + Math.min(getLevel() - 1, 12) * .03));
+  // One tempo for every tune, so moving to the next track never changes the pace. (Each tune
+  // used to have its own bpm and the waltz felt much slower.) It speeds up gently with level.
+  const BPM = 150;
+  const beatLen = () => 60 / (BPM * (1 + Math.min(getLevel() - 1, 12) * .03));
   function load(i, again) {
     pi = i; passes = again ? passes : 0;
     cur = arrangement(PLAYLIST[pi][0], PLAYLIST[pi][1]);
-    ei = 0; spb = beatLen(cur.tr);
+    ei = 0; spb = beatLen();
   }
   function sched() {
     if (!ac || !cur) return;
