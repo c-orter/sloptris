@@ -414,7 +414,7 @@
     // Lock to one axis so a slightly crooked swipe doesn't also move the piece. Starting down
     // needs to be clearly vertical. Going from sideways to down needs a quick, mostly-vertical
     // push right now; slowly drifting downward while sliding sideways never counts.
-    if (!gest.axis && Math.max(adx, ady) > 12) gest.axis = ady > adx * 1.8 && e.clientY > gest.y0 ? 'v' : 'h';
+    if (!gest.axis && Math.max(adx, ady) > 12) gest.axis = ady > adx * 1.8 ? (e.clientY > gest.y0 ? 'v' : 'u') : 'h';   // down / up / sideways
     if (gest.axis === 'v' && Math.abs(e.clientX - gest.ax) > cs * 2.2) { gest.axis = 'h'; gest.ax = e.clientX; }
     else if (gest.axis === 'h' && rdy > cs * 1.2 && rdy > Math.abs(rdx) * 2 && rdy / Math.max(1, now - ts) > .5) { gest.axis = 'v'; gest.ay = e.clientY; }
     if (gest.axis === 'h') {
@@ -443,7 +443,7 @@
       rotate(e.clientX > r.left + r.width / 2 ? 1 : -1);
     } else if (vy > 0.9 && rdy > cs * 1.5 && Math.abs(rdx) < rdy * .5) {
       hardDrop();                                                  // a real downward flick at the end
-    } else if (gs.axis !== 'h' && dy < -cs * 2.5 && Math.abs(dx) < Math.abs(dy) * .7) {
+    } else if (gs.axis === 'u' && dy < -cs * 2 && Math.abs(dx) < Math.abs(dy) * .7) {
       hold();                                                      // swipe up (never from a sideways slide)
     }
   }
