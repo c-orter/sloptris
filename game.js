@@ -411,12 +411,16 @@
     const rdx = e.clientX - xs, rdy = e.clientY - ys;             // what the finger is doing right now
     const adx = Math.abs(e.clientX - gest.x0), ady = Math.abs(e.clientY - gest.y0);
     if (adx > 8 || ady > 8) { gest.moved = true; clearTimeout(gest.holdT); }
-    // Lock to one axis so a slightly crooked swipe doesn't also move the piece. Starting down
-    // needs to be clearly vertical. Going from sideways to down needs a quick, mostly-vertical
-    // push right now; slowly drifting downward while sliding sideways never counts.
-    if (!gest.axis && Math.max(adx, ady) > 12) gest.axis = ady > adx * 1.8 ? (e.clientY > gest.y0 ? 'v' : 'u') : 'h';   // down / up / sideways
-    if (gest.axis === 'v' && Math.abs(e.clientX - gest.ax) > cs * 2.2) { gest.axis = 'h'; gest.ax = e.clientX; }
-    else if (gest.axis === 'h' && rdy > cs * 1.2 && rdy > Math.abs(rdx) * 2 && rdy / Math.max(1, now - ts) > .5) { gest.axis = 'v'; gest.ay = e.clientY; }
+    // Lock to one axis, so a swipe does only one thing. A downward swipe stays a drop however
+    // much the finger arcs sideways, and a sideways swipe stays a slide however much it drifts
+    // down. Changing direction mid-swipe needs a quick push that is mostly in the new direction.
+    if (!gest.axis && Math.max(adx, ady) > 14) {
+      const down = e.clientY > gest.y0;
+      gest.axis = down ? (ady > adx ? 'v' : 'h') : (ady > adx * 1.8 ? 'u' : 'h');     // down / up / sideways
+    }
+    const speed = Math.hypot(rdx, rdy) / Math.max(1, now - ts);                        // px/ms right now
+    if (gest.axis === 'v' && Math.abs(rdx) > cs * 1.2 && Math.abs(rdx) > Math.abs(rdy) * 2 && speed > .5) { gest.axis = 'h'; gest.ax = e.clientX; }
+    else if (gest.axis === 'h' && rdy > cs * 1.2 && rdy > Math.abs(rdx) * 2 && speed > .5) { gest.axis = 'v'; gest.ay = e.clientY; }
     if (gest.axis === 'h') {
       const stepX = cs * 0.85;
       while (Math.abs(e.clientX - gest.ax) >= stepX) {

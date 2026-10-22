@@ -1,4 +1,4 @@
-const CACHE = 'sloptris-v17';
+const CACHE = 'sloptris-v18';
 const ASSETS = [
   './', './index.html', './styles.css', './game.js', './audio.js', './manifest.webmanifest',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
